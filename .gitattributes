@@ -1,0 +1,77 @@
+# 기본 텍스트 파일은 자동으로 EOL(LF) 정규화
+* text=auto
+
+# OS별 스크립트 EOL 강제
+*.sh   text eol=lf
+*.bat  text eol=crlf
+
+# 언어별 diff 최적화
+*.java   text diff=java
+*.kt     text diff=kotlin
+*.gradle text
+*.xml    text
+*.yml    text
+*.yaml   text
+*.properties text
+*.json   text
+*.md     text diff=markdown
+
+# Web (React/Node)
+*.html text diff=html
+*.css  text diff=css
+*.js   text diff=javascript
+*.jsx  text diff=javascript
+*.ts   text diff=typescript
+*.tsx  text diff=typescript
+
+# Spring Boot 설정
+application*.properties text
+application*.yml        text
+application*.yaml       text
+bootstrap*.yml          text
+bootstrap*.yaml         text
+
+# Gradle/Maven Wrapper
+gradlew       text eol=lf
+gradlew.bat   text eol=crlf
+mvnw          text eol=lf
+mvnw.cmd      text eol=crlf
+gradle/wrapper/gradle-wrapper.properties text
+
+# Docker / Build
+Dockerfile          text eol=lf
+docker-compose.yml  text eol=lf
+Makefile            text eol=lf
+
+# Git 관련
+.gitignore     text
+.gitattributes text
+
+# 이미지/폰트 (바이너리 취급)
+*.png  binary
+*.jpg  binary
+*.jpeg binary
+*.gif  binary
+*.ico  binary
+*.webp binary
+*.bmp  binary
+*.tiff binary
+*.svg  text   # SVG는 diff 가능하므로 text
+
+*.ttf   binary
+*.otf   binary
+*.woff  binary
+*.woff2 binary
+
+# 보안/인증서 파일 (바이너리 취급)
+*.key      binary
+*.pem      binary
+*.p12      binary
+*.jks      binary
+*.keystore binary
+
+# 산출물 (바이너리 취급)
+*.jar   binary
+*.war   binary
+*.ear   binary
+*.class binary

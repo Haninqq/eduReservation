@@ -1,0 +1,26 @@
+/* 테마별 CSS 분리 */
+
+/* 다크 테마 */
+.theme-dark {
+  --hanyang-primary: #4A90E2;
+  --hanyang-secondary: #357ABD;
+  --bg-color: #1a1a1a;
+  --text-color: #ffffff;
+}
+
+/* 라이트 테마 (기본) */
+.theme-light {
+  --hanyang-primary: #0066CC;
+  --hanyang-secondary: #004499;
+  --bg-color: #F8FAFC;
+  --text-color: #0F172A;
+}
+
+/* 고대비 테마 */
+.theme-high-contrast {
+  --hanyang-primary: #000000;
+  --hanyang-secondary: #333333;
+  --bg-color: #ffffff;
+  --text-color: #000000;
+}
+

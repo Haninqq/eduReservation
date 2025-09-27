@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Configuration status="WARN">
+    <Appenders>
+        <!-- 콘솔 출력 -->
+        <Console name="Console" target="SYSTEM_OUT">
+            <PatternLayout pattern="%d{yyyy-MM-dd HH:mm:ss.SSS} [%t] %-5level %logger{36} - %msg%n"/>
+        </Console>
+        
+        <!-- 일반 로그 파일 -->
+        <RollingFile name="GeneralFileAppender" 
+                     fileName="logs/application.log"
+                     filePattern="logs/application-%d{yyyy-MM-dd}-%i.log.gz">
+            <PatternLayout pattern="%d{yyyy-MM-dd HH:mm:ss.SSS} [%t] %-5level %logger{36} - %msg%n"/>
+            <Policies>
+                <TimeBasedTriggeringPolicy />
+                <SizeBasedTriggeringPolicy size="10MB"/>
+            </Policies>
+            <DefaultRolloverStrategy max="10"/>
+        </RollingFile>
+        
+        <!-- 에러 로그만 별도 파일 -->
+        <RollingFile name="ErrorFileAppender" 
+                     fileName="logs/error.log"
+                     filePattern="logs/error-%d{yyyy-MM-dd}-%i.log.gz">
+            <PatternLayout pattern="%d{yyyy-MM-dd HH:mm:ss.SSS} [%t] %-5level %logger{36} - %msg%n"/>
+            <Policies>
+                <TimeBasedTriggeringPolicy />
+                <SizeBasedTriggeringPolicy size="5MB"/>
+            </Policies>
+            <DefaultRolloverStrategy max="5"/>
+        </RollingFile>
+        
+        <!-- SQL 쿼리 로그 -->
+        <RollingFile name="SqlFileAppender" 
+                     fileName="logs/sql.log"
+                     filePattern="logs/sql-%d{yyyy-MM-dd}-%i.log.gz">
+            <PatternLayout pattern="%d{yyyy-MM-dd HH:mm:ss.SSS} [%t] %-5level %logger{36} - %msg%n"/>
+            <Policies>
+                <TimeBasedTriggeringPolicy />
+                <SizeBasedTriggeringPolicy size="5MB"/>
+            </Policies>
+            <DefaultRolloverStrategy max="5"/>
+        </RollingFile>
+    </Appenders>
+    
+    <Loggers>
+        <!-- 루트 로거 -->
+        <Root level="INFO">
+            <AppenderRef ref="Console"/>
+            <AppenderRef ref="GeneralFileAppender"/>
+            <AppenderRef ref="ErrorFileAppender" level="ERROR"/>
+        </Root>
+        
+        <!-- 애플리케이션 로거 -->
+        <Logger name="kr.ac.hanyang" level="DEBUG" additivity="false">
+            <AppenderRef ref="Console"/>
+            <AppenderRef ref="GeneralFileAppender"/>
+            <AppenderRef ref="ErrorFileAppender" level="ERROR"/>
+        </Logger>
+        
+        <!-- SQL 쿼리 로그 -->
+        <Logger name="org.mybatis" level="DEBUG" additivity="false">
+            <AppenderRef ref="Console"/>
+            <AppenderRef ref="SqlFileAppender"/>
+        </Logger>
+        
+        <!-- Spring 프레임워크 로그 레벨 조정 -->
+        <Logger name="org.springframework" level="INFO"/>
+        
+        <!-- 에러만 별도 파일로 -->
+        <Logger name="kr.ac.hanyang" level="ERROR" additivity="false">
+            <AppenderRef ref="ErrorFileAppender"/>
+        </Logger>
+    </Loggers>
+</Configuration>
