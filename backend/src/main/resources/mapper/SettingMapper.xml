@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="kr.ac.hanyang.backend.mapper.SettingMapper">
+
+    <select id="findAll" resultType="kr.ac.hanyang.backend.dto.Setting">
+        SELECT
+            id,
+            key_name AS keyName,
+            value,
+            description,
+            updated_at AS updatedAt
+        FROM settings
+    </select>
+
+</mapper>

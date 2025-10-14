@@ -52,3 +52,228 @@
   outline: none;
 }
 
+/* 나의 예약 내역 카드 스타일 */
+.my-reservations .section-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin-bottom: 1.5rem;
+  color: var(--text-primary);
+}
+
+.my-reservations-list {
+  display: flex;
+  overflow-x: auto;
+  gap: 1rem;
+  /* Parent card has padding, so use negative margin to extend to edges */
+  margin: 0 -1.5rem; 
+  padding: 0.25rem 1.5rem 1.25rem 1.5rem; /* Add horizontal padding back for content and some bottom padding */
+  scrollbar-width: thin;
+  scrollbar-color: var(--hanyang-primary) #e2e8f0;
+}
+
+.my-reservations-list::-webkit-scrollbar { height: 8px; }
+.my-reservations-list::-webkit-scrollbar-track { background: #f1f5f9; border-radius: 4px; }
+.my-reservations-list::-webkit-scrollbar-thumb { background-color: var(--hanyang-primary); border-radius: 4px; opacity: 0.8; }
+.my-reservations-list::-webkit-scrollbar-thumb:hover { opacity: 1; }
+
+.reservation-item {
+  flex: 0 0 290px;
+  background: #ffffff;
+  border-radius: 16px;
+  padding: 1.25rem;
+  border: 1px solid var(--border-color);
+  display: flex;
+  flex-direction: column;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+}
+
+.reservation-item:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 20px rgba(0, 102, 204, 0.1);
+  border-color: rgba(0, 102, 204, 0.2);
+}
+
+.reservation-item__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 0.25rem;
+}
+
+.reservation-item__room-name {
+  font-size: 1.15rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.reservation-item__date {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  background-color: var(--surface-secondary);
+  padding: 0.2rem 0.6rem;
+  border-radius: 7px;
+}
+
+.reservation-item__time {
+  font-size: 1.6rem;
+  font-weight: 700;
+  color: var(--hanyang-primary);
+  margin: 0.5rem 0 1rem 0;
+}
+
+.reservation-item__cancel-btn {
+  width: 100%;
+  background: #fee2e2;
+  color: #dc2626;
+  border: 1px solid transparent;
+  padding: 0.75rem 1rem;
+  border-radius: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-size: 0.95rem;
+  margin-top: auto;
+}
+
+.reservation-item__cancel-btn:hover:not(:disabled) {
+  background: #dc2626;
+  color: #fff;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(220, 38, 38, 0.2);
+}
+
+.reservation-item__cancel-btn:disabled {
+  background: #f1f5f9;
+  color: #94a3b8;
+  border-color: #e2e8f0;
+  cursor: not-allowed;
+  opacity: 0.8;
+}
+
+.room-card__timeline {
+  flex-grow: 1;
+}
+
+/* My Reservations Section */
+.my-reservations-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 1.5rem;
+}
+
+.reservation-card {
+  background-color: #fff;
+  border-radius: 16px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+  padding: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+  border: 1px solid var(--gray-200);
+}
+
+.reservation-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 10px 25px rgba(0, 102, 204, 0.12);
+  border-color: rgba(0, 102, 204, 0.2);
+}
+
+.reservation-card__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--gray-100);
+}
+
+.reservation-card__room-info {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  overflow: hidden;
+}
+
+.reservation-card__type-chip {
+  background: var(--hanyang-light);
+  color: var(--hanyang-secondary);
+  font-size: 0.8rem;
+  font-weight: 700;
+  padding: 0.3rem 0.7rem;
+  border-radius: 8px;
+  flex-shrink: 0;
+}
+
+.reservation-card__room-name {
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: var(--gray-900);
+  margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.reservation-card__body {
+  flex-grow: 1;
+}
+
+.reservation-card__detail-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.reservation-card__detail {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-size: 1rem;
+}
+
+.reservation-card__icon {
+  font-size: 1.1rem;
+  color: var(--gray-400);
+}
+
+.reservation-card__text {
+  font-weight: 600;
+  color: var(--gray-700);
+}
+
+.btn-cancel-card {
+  width: 32px;
+  height: 32px;
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--gray-400);
+  border-radius: 50%;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 1.2rem;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.btn-cancel-card:hover:not(:disabled) {
+  background-color: var(--space-red);
+  color: #fff;
+  border-color: transparent;
+  box-shadow: none;
+  transform: rotate(90deg) scale(1.1);
+}
+
+.btn-cancel-card:disabled {
+  background-color: var(--gray-100);
+  border-color: var(--gray-200);
+  color: var(--gray-400);
+  cursor: not-allowed;
+}
+

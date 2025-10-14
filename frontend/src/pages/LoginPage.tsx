@@ -32,7 +32,7 @@ function LoginPage() {
               </div>
             </div>
             <h1 className="h3 fw-bold text-dark mb-2">한양대학교 사범대학</h1>
-            <p className="text-muted mb-0">교육 예약 시스템</p>
+            <p className="text-muted mb-0">스터디룸 & DCELL 예약 시스템</p>
           </div>
 
           {/* 로그인 버튼 */}
@@ -58,7 +58,7 @@ function LoginPage() {
           {/* 하단 장식 */}
           <div className="mt-5 pt-4 border-top text-center">
             <small className="text-muted">
-              Copyright © 2024 한양대학교 사범대학. All rights reserved.
+              Copyright © 2025 ~~~ All rights reserved.
             </small>
           </div>
         </div>

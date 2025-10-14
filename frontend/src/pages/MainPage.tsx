@@ -1,4 +1,7 @@
-import React, { useMemo, useState, useLayoutEffect, useRef } from 'react';
+import React, { useMemo, useState, useLayoutEffect, useRef, useEffect } from 'react';
+import { Reservation } from '../types/reservation';
+import { getReservationsByDate, createReservation, ReservationRequest, getMyReservations, cancelReservation } from '../services/reservationService';
+
 
 type SlotStatus = 'available' | 'unavailable' | 'past';
 
@@ -8,89 +11,32 @@ type Slot = {
 };
 
 type Room = {
-  id: string;
+  id: number;
   name: string;
-  description: string;
-  capacity: number;
-  equipments: string[];
+  type: 'BASEMENT' | 'DCELL';
   slots: Slot[];
 };
 
-const studyRoomConfigs = [
-  {
-    id: 'A',
-    name: 'A Room',
-    description: '기본형 스터디룸',
-    capacity: 6,
-    equipments: ['화이트보드', '55" 모니터'],
-    reservedSlots: [18, 19, 20, 21, 32, 33],
-  },
-  {
-    id: 'B',
-    name: 'B Room',
-    description: '소그룹 토의형',
-    capacity: 8,
-    equipments: ['180° 회의 테이블', '빔 프로젝터'],
-    reservedSlots: [12, 13, 14, 28, 29, 40, 41],
-  },
-  {
-    id: 'C',
-    name: 'C Room',
-    description: '집중형 1인실',
-    capacity: 1,
-    equipments: ['노이즈 캔슬링 패널', 'USB 허브'],
-    reservedSlots: [8, 9, 10, 11, 24, 25, 26],
-  },
-  {
-    id: 'D',
-    name: 'D Room',
-    description: '팀 프로젝트룸',
-    capacity: 10,
-    equipments: ['상호작용형 스크린', '화상 회의 시스템'],
-    reservedSlots: [0, 1, 2, 3, 34, 35, 36, 37],
-  },
-  {
-    id: 'E',
-    name: 'E Room',
-    description: '브레인스토밍룸',
-    capacity: 6,
-    equipments: ['아이디어 보드', '스탠딩 테이블'],
-    reservedSlots: [16, 17, 30, 31, 42, 43, 44],
-  },
-  {
-    id: 'F',
-    name: 'F Room',
-    description: '세미나 룸',
-    capacity: 12,
-    equipments: ['마이크 세트', '무선 프레젠터'],
-    reservedSlots: [20, 21, 22, 23, 46, 47],
-  },
-];
+type RoomsDTO = {
+  id: number;
+  name: string;
+  type: 'BASEMENT' | 'DCELL';
+};
 
-const dcellRoomConfigs = [
-  {
-    id: 'DX',
-    name: 'DCELL X',
-    description: '디자인씽킹 특화 공간',
-    capacity: 20,
-    equipments: ['4K 대형 스크린', '트래킹 카메라', '디자인 툴킷'],
-    reservedSlots: [14, 15, 16, 17, 18, 19, 32, 33, 34],
-  },
-  {
-    id: 'DY',
-    name: 'DCELL Y',
-    description: '아이디어 피칭 스테이지',
-    capacity: 40,
-    equipments: ['360° 음향 시스템', '무대 조명', '라이브 스트리밍'],
-    reservedSlots: [10, 11, 12, 26, 27, 28, 29, 30],
-  },
-];
 
-const createSlots = (reservedSlots: number[]): Slot[] =>
-  Array.from({ length: 48 }, (_, index) => ({
-    index,
-    status: reservedSlots.includes(index) ? 'unavailable' : 'available',
-  }));
+const createSlots = (reservations: Reservation[]): Slot[] => {
+    const reservedSlots = new Set<number>();
+    reservations.forEach(res => {
+        for (let i = res.startSlot; i <= res.endSlot; i++) {
+            reservedSlots.add(i);
+        }
+    });
+
+    return Array.from({ length: 48 }, (_, index) => ({
+        index,
+        status: reservedSlots.has(index) ? 'unavailable' : 'available',
+    }));
+}
 
 const formatSlotLabel = (index: number) => {
   const hour = Math.floor(index / 2);
@@ -110,13 +56,32 @@ const formatDateDisplay = (date: Date) => {
   const tomorrow = new Date(today);
   tomorrow.setDate(tomorrow.getDate() + 1);
   
+  const dateString = `${date.getMonth() + 1}월 ${date.getDate()}일`;
+
   if (date.toDateString() === today.toDateString()) {
-    return '오늘';
+    return `오늘 ・ ${dateString}`;
   } else if (date.toDateString() === tomorrow.toDateString()) {
-    return '내일';
+    return `내일 ・ ${dateString}`;
   } else {
-    return `${date.getMonth() + 1}월 ${date.getDate()}일`;
+    return dateString;
   }
+};
+
+const formatRoomType = (type: 'BASEMENT' | 'DCELL') => {
+  if (type === 'BASEMENT') return '스터디룸';
+  if (type === 'DCELL') return 'DCELL';
+  return '';
+};
+
+const formatDateWithDay = (dateString: string) => {
+  const date = new Date(dateString);
+  const options: Intl.DateTimeFormatOptions = {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+    weekday: 'short',
+  };
+  return new Intl.DateTimeFormat('ko-KR', options).format(date);
 };
 
 type TimeBlock = {
@@ -168,11 +133,13 @@ const RoomCard: React.FC<{
   currentSlotIndex: number;
   onModalOpen: (room: Room, startSlot: Slot, endSlot: Slot) => void;
   onModalClose?: () => void;
+  showAlert: (title: string, message: string, type: 'success' | 'error' | 'info') => void;
 }> = ({ 
   room, 
   currentSlotIndex,
   onModalOpen,
-  onModalClose
+  onModalClose,
+  showAlert
 }) => {
   const [selectedStartSlot, setSelectedStartSlot] = useState<Slot | null>(null);
   const [selectedEndSlot, setSelectedEndSlot] = useState<Slot | null>(null);
@@ -201,7 +168,7 @@ const RoomCard: React.FC<{
         onModalOpen(room, selectedStartSlot, slot);
       } else {
         // 유효하지 않은 범위 선택 시, 모든 선택 취소
-        alert('선택하신 시간 범위에 예약 불가능한 슬롯이 포함되어 있습니다. 다시 선택해주세요.');
+        showAlert('예약 불가', '선택하신 시간 범위에 예약 불가능한 슬롯이 포함되어 있습니다. 다시 선택해주세요.', 'error');
         setSelectedStartSlot(null);
         setSelectedEndSlot(null);
       }
@@ -276,8 +243,7 @@ const RoomCard: React.FC<{
     )}
 
     <div className="room-card__header">
-      <h3 className="room-card__title">{room.name}</h3>
-      <div className="room-card__chip">{room.id}</div>
+      <h3 className="room-card__title">Room {room.name}</h3>
     </div>
 
       <div className="room-card__timeline">
@@ -365,9 +331,76 @@ function MainPage() {
     endSlot: Slot;
   } | null>(null);
 
+  const [alertModal, setAlertModal] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    type: 'success' | 'error' | 'info';
+  } | null>(null);
+
+  const [confirmModal, setConfirmModal] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    onConfirm: () => void;
+  } | null>(null);
+
+ 
+   const [roomsData, setRoomsData] = useState<RoomsDTO[]>([]);
+   const [reservations, setReservations] = useState<Reservation[]>([]);
+  const [myReservations, setMyReservations] = useState<Reservation[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [isReserving, setIsReserving] = useState(false);
+  const [cancellingId, setCancellingId] = useState<number | null>(null);
+  const [currentTime, setCurrentTime] = useState(new Date());
+  
   const studyPanelRef = useRef<HTMLDivElement>(null);
   const dcellPanelRef = useRef<HTMLDivElement>(null);
 
+  const fetchRoomsAndReservations = async () => {
+    setLoading(true);
+    // TODO: 실제 유저 ID로 교체해야 합니다.
+    const userId = 1;
+    try {
+      const formattedDate = formatDate(selectedDate);
+      
+      const [roomsResponse, reservationsResponse, myReservationsResponse] = await Promise.all([
+        fetch('http://localhost:8080/api/rooms'),
+        getReservationsByDate(formattedDate),
+        getMyReservations(userId)
+      ]);
+
+      const rooms = await roomsResponse.json();
+      
+      if (Array.isArray(rooms)) {
+        setRoomsData(rooms);
+      } else {
+        console.error('Room data is not an array:', rooms);
+        setRoomsData([]); 
+      }
+      setReservations(reservationsResponse || []);
+      setMyReservations(myReservationsResponse || []);
+
+    } catch (error) {
+      console.error('Failed to fetch rooms or reservations:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // 날짜가 변경될 때마다 방과 예약 정보 다시 가져오기
+  useEffect(() => {
+    fetchRoomsAndReservations();
+  }, [selectedDate]);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 60000); // 1분마다 현재 시간 갱신
+    return () => clearInterval(timer);
+  }, []);
+
+  
   useLayoutEffect(() => {
     const activePanel = activeTab === 'study' ? studyPanelRef.current : dcellPanelRef.current;
     if (activePanel) {
@@ -375,9 +408,25 @@ function MainPage() {
     }
   }, [activeTab]);
 
-  const handleLogout = () => {
-    console.log('로그아웃');
+  const showAlert = (title: string, message: string, type: 'success' | 'error' | 'info' = 'info') => {
+    setAlertModal({ isOpen: true, title, message, type });
   };
+
+  const closeAlert = () => {
+    setAlertModal(null);
+  };
+
+  const showConfirm = (title: string, message: string, onConfirm: () => void) => {
+    setConfirmModal({ isOpen: true, title, message, onConfirm });
+  };
+
+  const closeConfirm = () => {
+    setConfirmModal(null);
+  };
+ 
+   const handleLogout = () => {
+     console.log('로그아웃');
+   };
 
   const handleModalOpen = (room: Room, startSlot: Slot, endSlot: Slot) => {
     setModalData({ room, startSlot, endSlot });
@@ -387,6 +436,67 @@ function MainPage() {
     setModalData(null);
     // 모든 룸 카드의 선택 상태 초기화를 위한 이벤트 발생
     window.dispatchEvent(new CustomEvent('modalClose'));
+  };
+
+  const handleConfirmReservation = async () => {
+    if (!modalData) return;
+
+    // TODO: 실제 유저 ID로 교체해야 합니다.
+    const userId = 1;
+
+    const reservationData: ReservationRequest = {
+      userId: userId,
+      roomId: modalData.room.id,
+      date: formatDate(selectedDate),
+      startSlot: modalData.startSlot.index,
+      endSlot: modalData.endSlot.index,
+    };
+
+    setIsReserving(true);
+    try {
+      await createReservation(reservationData);
+      showAlert('예약 완료', '예약이 성공적으로 완료되었습니다!', 'success');
+      handleModalClose();
+      // 예약 완료 후 최신 정보로 업데이트
+      fetchRoomsAndReservations(); 
+    } catch (error: any) {
+      if (error.response && error.response.data && error.response.data.message) {
+        showAlert('예약 실패', error.response.data.message, 'error');
+      } else {
+        showAlert('오류 발생', '예약 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.', 'error');
+      }
+      console.error('Reservation failed:', error);
+    } finally {
+      setIsReserving(false);
+    }
+  };
+
+  const handleCancelReservation = async (reservationId: number) => {
+    const cancelAction = async () => {
+      setCancellingId(reservationId);
+      // TODO: 실제 유저 ID로 교체해야 합니다.
+      const userId = 1;
+      try {
+        await cancelReservation(reservationId, userId);
+        showAlert('예약 취소', '예약이 성공적으로 취소되었습니다.', 'success');
+        // 데이터 다시 불러오기
+        fetchRoomsAndReservations();
+      } catch (error: any) {
+        if (error.response && error.response.data && error.response.data.message) {
+          showAlert('취소 실패', error.response.data.message, 'error');
+        } else {
+          showAlert('오류 발생', '예약 취소 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.', 'error');
+        }
+      } finally {
+        setCancellingId(null);
+      }
+    };
+
+    showConfirm(
+      '예약 취소 확인', 
+      '정말로 이 예약을 취소하시겠습니까?', 
+      cancelAction
+    );
   };
 
   const currentSlotIndex = useMemo(() => {
@@ -404,29 +514,38 @@ function MainPage() {
     }
   }, [selectedDate]);
 
-  const studyRooms = useMemo<Room[]>(
-    () =>
-      studyRoomConfigs.map((room) => ({
+  const studyRooms = useMemo<Room[]>(() => {
+    if (loading || !Array.isArray(roomsData)) return [];
+    
+    return roomsData
+      .filter(room => room.type === 'BASEMENT')
+      .map(room => ({
         ...room,
-        slots: createSlots(room.reservedSlots),
-      })),
-    []
-  );
+        slots: createSlots(reservations.filter(r => r.roomId === room.id))
+      }));
+  }, [roomsData, reservations, loading]);
 
-  const dcellRooms = useMemo<Room[]>(
-    () =>
-      dcellRoomConfigs.map((room) => ({
+  const dcellRooms = useMemo<Room[]>(() => {
+    if (loading || !Array.isArray(roomsData)) return [];
+    
+    return roomsData
+      .filter(room => room.type === 'DCELL')
+      .map(room => ({
         ...room,
-        slots: createSlots(room.reservedSlots),
-      })),
-    []
-  );
+        slots: createSlots(reservations.filter(r => r.roomId === room.id))
+      }));
+  }, [roomsData, reservations, loading]);
+
+  const futureReservations = useMemo<Reservation[]>(() => {
+    return myReservations.filter(res => {
+      const reservationEnd = new Date(`${res.date}T${formatSlotLabel(res.endSlot + 1)}`);
+      return reservationEnd > currentTime;
+    });
+  }, [myReservations, currentTime]);
 
   const legend = [
     { label: '예약 가능', className: 'slot-available' },
-    { label: '예약 불가', className: 'slot-unavailable' },
-    { label: '지난 시간', className: 'slot-past' },
-    { label: '현재 시간', className: 'slot-current' },
+    { label: '예약 불가', className: 'slot-unavailable' }
   ];
 
   return (
@@ -436,14 +555,14 @@ function MainPage() {
           <div className="d-flex align-items-center gap-3">
             <div className="space-logo">H</div>
             <div>
-              <h5 className="text-white mb-0 fw-bold">한양대학교 사범대학</h5>
-              <small className="text-white-50">스터디룸 · DCELL 공간 예약 시스템</small>
+              <h5 className="text-black mb-0 fw-bold">한양대학교 사범대학</h5>
+              <small className="text-black-50 space-nav__subtitle">스터디룸 · DCELL 공간 예약 시스템</small>
             </div>
           </div>
           <div className="d-flex align-items-center gap-3">
-            <div className="text-white text-end">
+            <div className="text-black text-end">
               <div className="fw-semibold">홍길동</div>
-              <small className="text-white-50">사범대학 학생</small>
+              <small className="text-black-50">사범대학 학생</small>
             </div>
             <button className="btn btn-light btn-sm rounded-pill px-3" onClick={handleLogout}>
               로그아웃
@@ -455,39 +574,105 @@ function MainPage() {
       <main className="space-main py-5">
         <div className="container">
           <section className="card-modern space-hero mb-4">
-            <div>
-              <h2 className="space-hero__title">이용 가능한 공간을 한눈에 확인하세요</h2>
-              <p className="space-hero__caption">
-                모든 공간은 30분 단위로 예약할 수 있으며, 실시간으로 갱신되는 이용 가능 여부를 제공합니다.
-              </p>
+            <div className="space-hero__main">
+              <div className="space-hero__header">
+                <h2 className="space-hero__title">한양대 사범대학 스터디룸 예약 시스템</h2>
+                <div className="space-hero__legend">
+                  {legend.map((item) => (
+                    <div key={item.label} className="legend-item">
+                      <span className={`legend-dot ${item.className}`} />
+                      <span>{item.label}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div className="space-hero__policy">
+                <p>
+                  <strong>📢 이용 안내</strong><br />
+                  - 스터디룸은 재학생만 예약 가능하며, 예약한 본인이 반드시 이용해야 합니다.<br />
+                  - 예약 시간 10분 초과 시 자동 취소되오니, 늦지 않게 이용을 시작해주세요.<br />
+                  - 모든 공간에서 음식물 섭취는 불가하며, 깨끗하게 사용 후 정리정돈 부탁드립니다.
+                </p>
+              </div>
             </div>
             <div className="space-hero__controls">
               <div className="date-selector">
                 <label htmlFor="date-picker" className="date-selector__label">
                   📅 날짜 선택
                 </label>
-                <input
-                  id="date-picker"
-                  type="date"
-                  value={formatDate(selectedDate)}
-                  onChange={(e) => setSelectedDate(new Date(e.target.value))}
-                  min={formatDate(new Date())}
-                  className="date-selector__input"
-                />
-                <span className="date-selector__display">
-                  {formatDateDisplay(selectedDate)}
-                </span>
-              </div>
-              <div className="space-hero__legend">
-                {legend.map((item) => (
-                  <div key={item.label} className="legend-item">
-                    <span className={`legend-dot ${item.className}`} />
-                    <span>{item.label}</span>
-                  </div>
-                ))}
+                <div className="date-selector__container">
+                  {(() => {
+                  const maxDate = new Date();
+                  maxDate.setDate(maxDate.getDate() + 6);
+                  
+                  return (
+                    <input
+                      id="date-picker"
+                      type="date"
+                      value={formatDate(selectedDate)}
+                      onChange={(e) => setSelectedDate(new Date(e.target.value))}
+                      min={formatDate(new Date())}
+                      max={formatDate(maxDate)}
+                      className="date-selector__input"
+                    />
+                  );
+                })()}
+                  <span className="date-selector__display">
+                    {formatDateDisplay(selectedDate)}
+                  </span>
+                </div>
               </div>
             </div>
           </section>
+
+          {futureReservations.length > 0 && (
+            <section className="my-reservations mb-4">
+              <h3 className="section-title">📌 나의 예약 내역</h3>
+              <div className="my-reservations-grid">
+                {futureReservations.map(res => {
+                  const room = roomsData.find(r => r.id === res.roomId);
+                  
+                  const reservationStart = new Date(`${res.date}T${formatSlotLabel(res.startSlot)}`);
+                  const isCancelable = res.status === 'RESERVED' && reservationStart > new Date();
+
+                  return (
+                    <div key={res.id} className="reservation-card">
+                      <div className="reservation-card__header">
+                        <div className="reservation-card__room-info">
+                          <span className="reservation-card__type-chip">
+                            {room ? formatRoomType(room.type) : '공간'}
+                          </span>
+                          <h4 className="reservation-card__room-name">{room ? room.name : `ID: ${res.roomId}`}</h4>
+                        </div>
+                        {isCancelable && (
+                          <button
+                            className="btn-cancel-card"
+                            onClick={() => handleCancelReservation(res.id)}
+                            disabled={cancellingId === res.id}
+                            title="예약 취소"
+                          >
+                            {cancellingId === res.id ? '...' : '✕'}
+                          </button>
+                        )}
+                      </div>
+                      <div className="reservation-card__body">
+                        <div className="reservation-card__detail-group">
+                          <div className="reservation-card__detail">
+                            <span className="reservation-card__icon">📅</span>
+                            <span className="reservation-card__text">{formatDateWithDay(res.date)}</span>
+                          </div>
+                          <div className="reservation-card__detail">
+                            <span className="reservation-card__icon">⏰</span>
+                            <span className="reservation-card__text">{formatSlotLabel(res.startSlot)} - {formatSlotLabel(res.endSlot + 1)}</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </section>
+          )}
 
           <section className="card-modern tab-wrapper">
             <div className="tab-header">
@@ -514,30 +699,46 @@ function MainPage() {
                 style={{ transform: activeTab === 'study' ? 'translateX(0%)' : 'translateX(-50%)' }}
               >
                 <div className="tab-panel" ref={studyPanelRef}>
-                  <div className="room-list">
-                    {studyRooms.map((room) => (
-                      <RoomCard 
-                        key={room.id} 
-                        room={room} 
-                        currentSlotIndex={currentSlotIndex}
-                        onModalOpen={handleModalOpen}
-                        onModalClose={handleModalClose}
-                      />
-                    ))}
-                  </div>
+                  {loading ? (
+                    <div className="loading-container">
+                      <div className="loading-spinner"></div>
+                      <p>방 정보를 불러오는 중...</p>
+                    </div>
+                  ) : (
+                    <div className="room-list">
+                      {studyRooms.map((room) => (
+                        <RoomCard 
+                          key={room.id} 
+                          room={room} 
+                          currentSlotIndex={currentSlotIndex}
+                          onModalOpen={handleModalOpen}
+                          onModalClose={handleModalClose}
+                          showAlert={showAlert}
+                        />
+                      ))}
+                    </div>
+                  )}
                 </div>
                 <div className="tab-panel" ref={dcellPanelRef}>
-                  <div className="room-list">
-                    {dcellRooms.map((room) => (
-                      <RoomCard 
-                        key={room.id} 
-                        room={room} 
-                        currentSlotIndex={currentSlotIndex}
-                        onModalOpen={handleModalOpen}
-                        onModalClose={handleModalClose}
-                      />
-                    ))}
-                  </div>
+                  {loading ? (
+                    <div className="loading-container">
+                      <div className="loading-spinner"></div>
+                      <p>방 정보를 불러오는 중...</p>
+                    </div>
+                  ) : (
+                    <div className="room-list">
+                      {dcellRooms.map((room) => (
+                        <RoomCard 
+                          key={room.id} 
+                          room={room} 
+                          currentSlotIndex={currentSlotIndex}
+                          onModalOpen={handleModalOpen}
+                          onModalClose={handleModalClose}
+                          showAlert={showAlert}
+                        />
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -575,13 +776,59 @@ function MainPage() {
                 </span>
               </div>
               <div className="confirm-actions">
-                <button className="btn-reserve" onClick={() => console.log('예약!')}>
-                  예약하기
+                <button 
+                  className="btn-reserve" 
+                  onClick={handleConfirmReservation}
+                  disabled={isReserving}
+                >
+                  {isReserving ? '예약 중...' : '예약하기'}
                 </button>
-                <button className="btn-reset" onClick={handleModalClose}>
+                <button className="btn-reset" onClick={handleModalClose} disabled={isReserving}>
                   다시 선택
                 </button>
               </div>
+            </div>
+          </div>
+        </>
+      )}
+      
+      {/* 알림 모달 */}
+      {alertModal?.isOpen && (
+        <>
+          <div className="custom-modal-overlay" onClick={closeAlert} />
+          <div className={`custom-modal alert-modal alert-${alertModal.type}`}>
+            <div className="modal-header">
+              <h3 className="modal-title">{alertModal.title}</h3>
+              <button className="modal-close" onClick={closeAlert}>✕</button>
+            </div>
+            <div className="modal-content">
+              <p>{alertModal.message}</p>
+            </div>
+            <div className="modal-footer">
+              <button className="btn-confirm" onClick={closeAlert}>확인</button>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* 확인 모달 */}
+      {confirmModal?.isOpen && (
+        <>
+          <div className="custom-modal-overlay" onClick={closeConfirm} />
+          <div className="custom-modal confirm-modal">
+            <div className="modal-header">
+              <h3 className="modal-title">{confirmModal.title}</h3>
+              <button className="modal-close" onClick={closeConfirm}>✕</button>
+            </div>
+            <div className="modal-content">
+              <p>{confirmModal.message}</p>
+            </div>
+            <div className="modal-footer">
+              <button className="btn-cancel" onClick={closeConfirm}>취소</button>
+              <button className="btn-confirm" onClick={() => {
+                confirmModal.onConfirm();
+                closeConfirm();
+              }}>확인</button>
             </div>
           </div>
         </>
