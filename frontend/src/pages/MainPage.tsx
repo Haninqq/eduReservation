@@ -896,8 +896,8 @@ function MainPage() {
               </div>
               {settings && (() => {
                 // 선택된 날짜의 예약 시간 계산
-                const selectedDate = modalData.date;
-                const selectedDateReservations = myReservations.filter(res => res.date === selectedDate);
+                const selectedDateStr = formatDate(selectedDate);
+                const selectedDateReservations = myReservations.filter(res => res.date === selectedDateStr);
                 const selectedDateSlots = selectedDateReservations.reduce((sum, res) => {
                   return sum + (res.endSlot - res.startSlot + 1);
                 }, 0);
@@ -912,7 +912,7 @@ function MainPage() {
                   <div className="confirm-limits mt-3">
                     <div className="alert alert-info mb-0 p-2">
                       <small>
-                        <strong>📊 예약 현황 ({selectedDate})</strong><br/>
+                        <strong>📊 예약 현황 ({selectedDateStr})</strong><br/>
                         • 이미 예약: {selectedDateReservedHours}시간 / {settings.DAILY_LIMIT_HOURS}시간<br/>
                         • 남은 시간: {remainingHours}시간<br/>
                         • 이번 예약: {requestedHours}시간<br/>
@@ -930,8 +930,8 @@ function MainPage() {
                   onClick={handleConfirmReservation}
                   disabled={isReserving || Boolean((() => {
                     if (!settings) return false;
-                    const selectedDate = modalData.date;
-                    const selectedDateReservations = myReservations.filter(res => res.date === selectedDate);
+                    const selectedDateStr = formatDate(selectedDate);
+                    const selectedDateReservations = myReservations.filter(res => res.date === selectedDateStr);
                     const selectedDateSlots = selectedDateReservations.reduce((sum, res) => {
                       return sum + (res.endSlot - res.startSlot + 1);
                     }, 0);
@@ -945,8 +945,8 @@ function MainPage() {
                   {isReserving ? '예약 중...' : 
                    (() => {
                      if (!settings) return '예약하기';
-                     const selectedDate = modalData.date;
-                     const selectedDateReservations = myReservations.filter(res => res.date === selectedDate);
+                     const selectedDateStr = formatDate(selectedDate);
+                     const selectedDateReservations = myReservations.filter(res => res.date === selectedDateStr);
                      const selectedDateSlots = selectedDateReservations.reduce((sum, res) => {
                        return sum + (res.endSlot - res.startSlot + 1);
                      }, 0);
