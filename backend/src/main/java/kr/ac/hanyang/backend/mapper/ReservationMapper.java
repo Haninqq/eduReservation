@@ -37,4 +37,9 @@ public interface ReservationMapper {
      * 체크인 시간 업데이트
      */
     void updateCheckinTime(@Param("id") int id);
+
+    /**
+     * 예약 상태 업데이트
+     */
+    void updateStatus(@Param("id") int id, @Param("status") String status);
 }

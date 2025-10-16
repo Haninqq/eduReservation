@@ -40,7 +40,7 @@ public class SecurityConfig {
                 .userInfoEndpoint(userInfo -> userInfo
                     .userService(customOAuth2UserService)
                 )
-                .defaultSuccessUrl("http://localhost:3000/main", true)
+                .defaultSuccessUrl("http://localhost:3000/main", false)  // false: 로그인 전 URL로 돌아감
                 .failureUrl("http://localhost:3000/login?error=true")
             )
             .logout(logout -> logout

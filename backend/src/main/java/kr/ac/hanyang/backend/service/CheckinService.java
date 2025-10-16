@@ -80,8 +80,9 @@ public class CheckinService {
             throw new IllegalArgumentException("체크인 마감 시간(" + checkinDeadline.toLocalTime() + ")이 지나 예약이 자동 취소되었습니다.");
         }
 
-        // 5. 체크인 처리
+        // 6. 체크인 처리
         reservationMapper.updateCheckinTime(targetReservation.getId());
+        reservationMapper.updateStatus(targetReservation.getId(), "CHECKED_IN");
         log.info("체크인 완료: reservationId={}, userId={}, roomId={}", 
                 targetReservation.getId(), user.getId(), roomId);
 

@@ -39,7 +39,8 @@ public class ReservationScheduler {
                     && reservation.getCheckinTime() == null) {
                     
                     // 체크인 마감 시간 = 슬롯 종료 - 15분
-                    LocalTime endTime = slotToTime(reservation.getEndSlot());
+                    // 슬롯 종료 시간 = 슬롯 시작 시간 + 30분
+                    LocalTime endTime = slotToTime(reservation.getEndSlot()).plusMinutes(30);
                     LocalDateTime checkinDeadline = LocalDateTime.of(today, endTime).minusMinutes(15);
 
                     // 현재 시간이 체크인 마감 시간을 초과했는지 확인

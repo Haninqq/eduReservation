@@ -74,7 +74,9 @@ public class ReservationService {
         // 체크인 마감 시간 = 슬롯 종료 - 15분
         // 예약 시점이 마감 이후라면 체크인 불필요
         LocalDateTime now = LocalDateTime.now();
-        LocalDateTime checkinDeadline = LocalDateTime.of(request.getDate(), slotToTime(request.getEndSlot())).minusMinutes(15);
+        // 슬롯 종료 시간 = 슬롯 시작 시간 + 30분
+        LocalTime endTime = slotToTime(request.getEndSlot()).plusMinutes(30);
+        LocalDateTime checkinDeadline = LocalDateTime.of(request.getDate(), endTime).minusMinutes(15);
         reservation.setCheckinRequired(!now.isAfter(checkinDeadline));
 
         reservationMapper.insertReservation(reservation);
