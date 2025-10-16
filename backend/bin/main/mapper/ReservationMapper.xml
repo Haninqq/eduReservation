@@ -79,4 +79,11 @@
         ORDER BY start_slot ASC
     </select>
 
+    <!-- 체크인 시간 업데이트 -->
+    <update id="updateCheckinTime">
+        UPDATE reservations 
+        SET checkin_time = NOW() 
+        WHERE id = #{id}
+    </update>
+
 </mapper>

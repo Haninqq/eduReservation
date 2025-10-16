@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import LoginPage from './pages/LoginPage';
 import MainPage from './pages/MainPage';
 import AdminPage from './pages/AdminPage';
+import CheckinPage from './pages/CheckinPage';
 
 function App() {
   return (
@@ -19,6 +20,9 @@ function App() {
         
         {/* 관리자 페이지 */}
         <Route path="/admin" element={<AdminPage />} />
+        
+        {/* 체크인 페이지 */}
+        <Route path="/checkin" element={<CheckinPage />} />
       </Routes>
     </Router>
   );

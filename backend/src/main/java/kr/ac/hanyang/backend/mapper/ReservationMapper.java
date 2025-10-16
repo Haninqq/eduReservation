@@ -32,4 +32,9 @@ public interface ReservationMapper {
      * 현재 진행 중인 예약 조회 (관리자용)
      */
     List<Reservation> getCurrentReservations();
+
+    /**
+     * 체크인 시간 업데이트
+     */
+    void updateCheckinTime(@Param("id") int id);
 }
