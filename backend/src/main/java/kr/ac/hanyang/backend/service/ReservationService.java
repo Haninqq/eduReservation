@@ -13,6 +13,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.ZoneId;
 import java.util.List;
 
 @RequiredArgsConstructor
@@ -33,7 +34,7 @@ public class ReservationService {
         
         // --- 정책 검증 로직 ---
         // 0. 예약 가능한 날짜 범위 검증 (오늘 ~ 6일 뒤)
-        LocalDate today = LocalDate.now();
+        LocalDate today = LocalDate.now(ZoneId.of("Asia/Seoul"));
         LocalDate maxReservationDate = today.plusDays(6);
         if (request.getDate().isAfter(maxReservationDate)) {
             throw new ReservationException("예약은 최대 " + maxReservationDate + "까지만 가능합니다.");
@@ -73,7 +74,7 @@ public class ReservationService {
         // 체크인 필요 여부 판단
         // 체크인 마감 시간 = 슬롯 종료 - 15분
         // 예약 시점이 마감 이후라면 체크인 불필요
-        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime now = LocalDateTime.now(ZoneId.of("Asia/Seoul"));
         // 슬롯 종료 시간 = 슬롯 시작 시간 + 30분
         LocalTime endTime = slotToTime(request.getEndSlot()).plusMinutes(30);
         LocalDateTime checkinDeadline = LocalDateTime.of(request.getDate(), endTime).minusMinutes(15);

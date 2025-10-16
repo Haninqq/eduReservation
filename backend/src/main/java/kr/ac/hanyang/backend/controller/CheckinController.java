@@ -27,6 +27,7 @@ public class CheckinController {
     @GetMapping
     public ResponseEntity<Map<String, Object>> checkin(
             @RequestParam Integer roomId,
+            @RequestParam(required = false) Integer reservationId,
             Principal principal
     ) {
         log.info("체크인 요청: roomId={}, user={}", roomId, principal != null ? principal.getName() : "anonymous");
@@ -43,7 +44,9 @@ public class CheckinController {
             // principal.getName()은 OAuth2에서 email을 반환
             String email = principal.getName();
             
-            Reservation checkedInReservation = checkinService.checkin(email, roomId);
+            Reservation checkedInReservation = (reservationId != null)
+                    ? checkinService.checkinByReservationId(reservationId)
+                    : checkinService.checkin(email, roomId);
             
             response.put("success", true);
             response.put("message", "체크인 완료!");

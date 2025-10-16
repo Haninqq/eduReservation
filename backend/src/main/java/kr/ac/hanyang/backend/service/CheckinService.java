@@ -12,6 +12,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.ZoneId;
 import java.util.List;
 
 @Slf4j
@@ -37,17 +38,33 @@ public class CheckinService {
             throw new IllegalArgumentException("사용자를 찾을 수 없습니다.");
         }
 
-        // 2. 오늘 날짜의 해당 방 예약 찾기
-        LocalDate today = LocalDate.now();
+        // 2. 오늘 날짜의 해당 방 예약 찾기 (현재 시간대 우선 매칭)
+        LocalDate today = LocalDate.now(ZoneId.of("Asia/Seoul"));
         List<Reservation> myReservations = reservationMapper.findByUserId(user.getId().intValue());
-        
-        Reservation targetReservation = myReservations.stream()
+
+        List<Reservation> candidates = myReservations.stream()
                 .filter(r -> r.getRoomId() == roomId)
                 .filter(r -> r.getDate().equals(today))
                 .filter(r -> "RESERVED".equals(r.getStatus()))
                 .filter(r -> r.getCheckinTime() == null) // 아직 체크인 안 한 예약
+                .sorted((a, b) -> Integer.compare(a.getStartSlot(), b.getStartSlot()))
+                .toList();
+
+        int nowSlot = getCurrentSlot();
+
+        // 현재 시간대에 해당하는 예약을 우선 선택
+        Reservation targetReservation = candidates.stream()
+                .filter(r -> nowSlot >= r.getStartSlot() && nowSlot < r.getEndSlot())
                 .findFirst()
                 .orElse(null);
+
+        // 현재 시간대 예약이 없다면, 아직 시작 전인 가장 이른 예약을 안내용으로 선택
+        if (targetReservation == null) {
+            targetReservation = candidates.stream()
+                    .filter(r -> nowSlot < r.getStartSlot())
+                    .findFirst()
+                    .orElse(null);
+        }
 
         if (targetReservation == null) {
             throw new IllegalArgumentException("오늘 이 방에 대한 예약이 없거나 이미 체크인했습니다.");
@@ -59,13 +76,13 @@ public class CheckinService {
         }
 
         // 4. 예약 시간 확인 (예약 시작 시간부터 체크인 가능)
-        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime now = LocalDateTime.now(ZoneId.of("Asia/Seoul"));
         LocalTime reservationStartTime = slotToTime(targetReservation.getStartSlot());
         LocalDateTime reservationStartDateTime = LocalDateTime.of(today, reservationStartTime);
         
         // 예약 시작 전에는 체크인 불가
         if (now.isBefore(reservationStartDateTime)) {
-            throw new IllegalArgumentException("예약 시작 시간(" + reservationStartTime + ")부터 체크인 가능합니다.");
+            throw new IllegalArgumentException("예약 시작 시간(" + reservationStartTime + " KST)부터 체크인 가능합니다.");
         }
 
         // 5. 체크인 마감 시간 확인 (슬롯 종료 - 15분)
@@ -75,9 +92,9 @@ public class CheckinService {
         if (now.isAfter(checkinDeadline)) {
             // 체크인 마감 시간 초과 → 예약 자동 취소
             reservationMapper.deleteById(targetReservation.getId());
-            log.info("예약 ID {}는 체크인 마감 시간({})까지 체크인하지 않아 자동 취소되었습니다.", 
+            log.info("예약 ID {}는 체크인 마감 시간({} KST)까지 체크인하지 않아 자동 취소되었습니다.", 
                     targetReservation.getId(), checkinDeadline);
-            throw new IllegalArgumentException("체크인 마감 시간(" + checkinDeadline.toLocalTime() + ")이 지나 예약이 자동 취소되었습니다.");
+            throw new IllegalArgumentException("체크인 마감 시간(" + checkinDeadline.toLocalTime() + " KST) 지나 예약이 자동 취소되었습니다.");
         }
 
         // 6. 체크인 처리

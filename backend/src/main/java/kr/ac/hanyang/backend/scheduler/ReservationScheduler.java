@@ -10,6 +10,7 @@ import org.springframework.stereotype.Component;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.ZoneId;
 import java.util.List;
 
 @Slf4j
@@ -26,8 +27,8 @@ public class ReservationScheduler {
     @Scheduled(fixedRate = 60000) // 1분마다 실행
     public void cancelNoShowReservations() {
         try {
-            LocalDate today = LocalDate.now();
-            LocalDateTime now = LocalDateTime.now();
+            LocalDate today = LocalDate.now(ZoneId.of("Asia/Seoul"));
+            LocalDateTime now = LocalDateTime.now(ZoneId.of("Asia/Seoul"));
 
             // 오늘 날짜의 모든 예약 조회
             List<Reservation> todayReservations = reservationMapper.getReservationsByDate(today);
