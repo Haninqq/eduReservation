@@ -28,7 +28,6 @@ public class ReservationService {
         int maxSlotsPerDay = dailyLimitHours * 2; // 30분 단위 슬롯이므로 시간 * 2
         int openingHour = settingService.getIntValue("OPENING_HOUR", 9); // 기본값 09:00
         int closingHour = settingService.getIntValue("CLOSING_HOUR", 21); // 기본값 21:00
-        int maxSlotsPerReservation = settingService.getIntValue("MAX_SLOTS_PER_RESERVATION", 6); // 기본값 3시간
         
         // --- 정책 검증 로직 ---
         // 0. 예약 가능한 날짜 범위 검증 (오늘 ~ 6일 뒤)
@@ -46,13 +45,8 @@ public class ReservationService {
             throw new ReservationException(String.format("예약 가능 시간은 %02d:00 ~ %02d:00 입니다.", openingHour, closingHour));
         }
 
-        // 2. 한번에 예약 가능한 최대 시간 검증
+        // 2. 하루에 예약 가능한 총 시간 검증 (DAILY_LIMIT_HOURS 사용)
         int requestedSlots = request.getEndSlot() - request.getStartSlot() + 1;
-        if (requestedSlots > maxSlotsPerReservation) {
-            throw new ReservationException("한 번에 최대 " + (maxSlotsPerReservation / 2.0) + "시간까지 예약할 수 있습니다.");
-        }
-
-        // 3. 하루에 예약 가능한 총 시간 검증 (DAILY_LIMIT_HOURS 사용)
         Integer alreadyReservedSlots = reservationMapper.getTotalReservedSlotsByUserIdAndDate(request.getUserId(), request.getDate());
         if (alreadyReservedSlots + requestedSlots > maxSlotsPerDay) {
             throw new ReservationException("하루에 최대 " + dailyLimitHours + "시간까지 예약할 수 있습니다. (현재 " + (alreadyReservedSlots/2.0) + "시간 예약됨)");

@@ -4,7 +4,6 @@ export interface PublicSettings {
   OPENING_HOUR: string;
   CLOSING_HOUR: string;
   DAILY_LIMIT_HOURS: string;
-  MAX_SLOTS_PER_RESERVATION: string;
 }
 
 /**

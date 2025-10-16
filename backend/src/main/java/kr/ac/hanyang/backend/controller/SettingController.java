@@ -32,7 +32,6 @@ public class SettingController {
         publicSettings.put("OPENING_HOUR", settingService.getValue("OPENING_HOUR", "9"));
         publicSettings.put("CLOSING_HOUR", settingService.getValue("CLOSING_HOUR", "21"));
         publicSettings.put("DAILY_LIMIT_HOURS", settingService.getValue("DAILY_LIMIT_HOURS", "3"));
-        publicSettings.put("MAX_SLOTS_PER_RESERVATION", settingService.getValue("MAX_SLOTS_PER_RESERVATION", "6"));
         
         return ResponseEntity.ok(publicSettings);
     }

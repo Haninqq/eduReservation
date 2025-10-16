@@ -351,29 +351,6 @@ function AdminPage() {
                         );
                       }
                       
-                      // MAX_SLOTS_PER_RESERVATION: 슬롯 선택
-                      if (keyName === 'MAX_SLOTS_PER_RESERVATION') {
-                        return (
-                          <div key={setting.id} className="col-md-6">
-                            <div className="card">
-                              <div className="card-body">
-                                <label className="form-label fw-bold">{keyName}</label>
-                                <select
-                                  className="form-select"
-                                  value={editedSettings[keyName] || ''}
-                                  onChange={(e) => setEditedSettings({...editedSettings, [keyName]: e.target.value})}
-                                >
-                                  {Array.from({ length: 24 }, (_, i) => i + 1).map(slot => (
-                                    <option key={slot} value={slot}>{slot} 슬롯 ({slot * 0.5}시간)</option>
-                                  ))}
-                                </select>
-                                <small className="text-muted">{setting.description}</small>
-                              </div>
-                            </div>
-                          </div>
-                        );
-                      }
-                      
                       // 기타: 일반 텍스트 입력
                       return (
                         <div key={setting.id} className="col-md-6">

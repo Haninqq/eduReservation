@@ -398,8 +398,7 @@ function MainPage() {
         setSettings({
           OPENING_HOUR: '9',
           CLOSING_HOUR: '21',
-          DAILY_LIMIT_HOURS: '3',
-          MAX_SLOTS_PER_RESERVATION: '6'
+          DAILY_LIMIT_HOURS: '3'
         });
       }
     };
@@ -908,9 +907,6 @@ function MainPage() {
                       )}
                     </small>
                   </div>
-                  <small className="text-muted d-block mt-2">
-                    ℹ️ 한 번에 최대 {parseInt(settings.MAX_SLOTS_PER_RESERVATION) / 2}시간까지 예약 가능
-                  </small>
                 </div>
               )}
               <div className="confirm-actions">
