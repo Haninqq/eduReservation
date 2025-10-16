@@ -1,6 +1,9 @@
 import React, { useMemo, useState, useLayoutEffect, useRef, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Reservation } from '../types/reservation';
 import { getReservationsByDate, createReservation, ReservationRequest, getMyReservations, cancelReservation } from '../services/reservationService';
+import { getCurrentUser, logout, UserInfo } from '../services/authService';
+import { getPublicSettings, PublicSettings } from '../services/settingService';
 
 
 type SlotStatus = 'available' | 'unavailable' | 'past';
@@ -24,7 +27,7 @@ type RoomsDTO = {
 };
 
 
-const createSlots = (reservations: Reservation[]): Slot[] => {
+const createSlots = (reservations: Reservation[], openingHour: number = 0, closingHour: number = 24): Slot[] => {
     const reservedSlots = new Set<number>();
     reservations.forEach(res => {
         for (let i = res.startSlot; i <= res.endSlot; i++) {
@@ -32,10 +35,18 @@ const createSlots = (reservations: Reservation[]): Slot[] => {
         }
     });
 
-    return Array.from({ length: 48 }, (_, index) => ({
-        index,
-        status: reservedSlots.has(index) ? 'unavailable' : 'available',
-    }));
+    // 운영 시간에 맞춰 슬롯 생성 (30분 단위이므로 hour * 2)
+    const startSlotIndex = openingHour * 2;
+    const endSlotIndex = closingHour * 2;
+    const slotCount = endSlotIndex - startSlotIndex;
+
+    return Array.from({ length: slotCount }, (_, i) => {
+        const index = startSlotIndex + i;
+        return {
+            index,
+            status: reservedSlots.has(index) ? 'unavailable' : 'available',
+        };
+    });
 }
 
 const formatSlotLabel = (index: number) => {
@@ -322,6 +333,7 @@ const RoomCard: React.FC<{
 };
 
 function MainPage() {
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<'study' | 'dcell'>('study');
   const [tabContentHeight, setTabContentHeight] = useState<number | 'auto'>('auto');
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
@@ -353,21 +365,60 @@ function MainPage() {
   const [isReserving, setIsReserving] = useState(false);
   const [cancellingId, setCancellingId] = useState<number | null>(null);
   const [currentTime, setCurrentTime] = useState(new Date());
+  const [currentUser, setCurrentUser] = useState<UserInfo | null>(null);
+  const [authLoading, setAuthLoading] = useState(true);
+  const [settings, setSettings] = useState<PublicSettings | null>(null);
   
   const studyPanelRef = useRef<HTMLDivElement>(null);
   const dcellPanelRef = useRef<HTMLDivElement>(null);
 
+  // 인증 체크
+  useEffect(() => {
+    const checkAuth = async () => {
+      const user = await getCurrentUser();
+      if (!user) {
+        navigate('/login');
+      } else {
+        setCurrentUser(user);
+      }
+      setAuthLoading(false);
+    };
+    checkAuth();
+  }, [navigate]);
+
+  // 설정값 가져오기
+  useEffect(() => {
+    const fetchSettings = async () => {
+      try {
+        const publicSettings = await getPublicSettings();
+        setSettings(publicSettings);
+      } catch (error) {
+        console.error('설정값 가져오기 실패:', error);
+        // 기본값 설정
+        setSettings({
+          OPENING_HOUR: '9',
+          CLOSING_HOUR: '21',
+          DAILY_LIMIT_HOURS: '3',
+          MAX_SLOTS_PER_RESERVATION: '6'
+        });
+      }
+    };
+    fetchSettings();
+  }, []);
+
   const fetchRoomsAndReservations = async () => {
+    if (!currentUser) return;
+    
     setLoading(true);
-    // TODO: 실제 유저 ID로 교체해야 합니다.
-    const userId = 1;
     try {
       const formattedDate = formatDate(selectedDate);
       
       const [roomsResponse, reservationsResponse, myReservationsResponse] = await Promise.all([
-        fetch('http://localhost:8080/api/rooms'),
+        fetch('http://localhost:8080/api/rooms', {
+          credentials: 'include'
+        }),
         getReservationsByDate(formattedDate),
-        getMyReservations(userId)
+        getMyReservations(currentUser.id)
       ]);
 
       const rooms = await roomsResponse.json();
@@ -390,8 +441,10 @@ function MainPage() {
 
   // 날짜가 변경될 때마다 방과 예약 정보 다시 가져오기
   useEffect(() => {
-    fetchRoomsAndReservations();
-  }, [selectedDate]);
+    if (currentUser) {
+      fetchRoomsAndReservations();
+    }
+  }, [selectedDate, currentUser]);
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -424,8 +477,8 @@ function MainPage() {
     setConfirmModal(null);
   };
  
-   const handleLogout = () => {
-     console.log('로그아웃');
+   const handleLogout = async () => {
+     await logout();
    };
 
   const handleModalOpen = (room: Room, startSlot: Slot, endSlot: Slot) => {
@@ -439,13 +492,10 @@ function MainPage() {
   };
 
   const handleConfirmReservation = async () => {
-    if (!modalData) return;
-
-    // TODO: 실제 유저 ID로 교체해야 합니다.
-    const userId = 1;
+    if (!modalData || !currentUser) return;
 
     const reservationData: ReservationRequest = {
-      userId: userId,
+      userId: currentUser.id,
       roomId: modalData.room.id,
       date: formatDate(selectedDate),
       startSlot: modalData.startSlot.index,
@@ -472,12 +522,12 @@ function MainPage() {
   };
 
   const handleCancelReservation = async (reservationId: number) => {
+    if (!currentUser) return;
+    
     const cancelAction = async () => {
       setCancellingId(reservationId);
-      // TODO: 실제 유저 ID로 교체해야 합니다.
-      const userId = 1;
       try {
-        await cancelReservation(reservationId, userId);
+        await cancelReservation(reservationId, currentUser.id);
         showAlert('예약 취소', '예약이 성공적으로 취소되었습니다.', 'success');
         // 데이터 다시 불러오기
         fetchRoomsAndReservations();
@@ -500,41 +550,53 @@ function MainPage() {
   };
 
   const currentSlotIndex = useMemo(() => {
+    if (!settings) return 0;
+    
     const today = new Date();
     const isToday = selectedDate.toDateString() === today.toDateString();
+    const openingHour = parseInt(settings.OPENING_HOUR || '9');
+    const closingHour = parseInt(settings.CLOSING_HOUR || '21');
+    const startSlotIndex = openingHour * 2;
+    const endSlotIndex = closingHour * 2;
     
     if (isToday) {
       // 오늘인 경우 현재 시간 기준으로 계산
       const now = new Date();
       const slotIndex = now.getHours() * 2 + (now.getMinutes() >= 30 ? 1 : 0);
-      return Math.max(0, Math.min(47, slotIndex));
+      return Math.max(startSlotIndex, Math.min(endSlotIndex - 1, slotIndex));
     } else {
-      // 다른 날짜인 경우 0부터 시작 (모든 시간대 예약 가능)
-      return 0;
+      // 다른 날짜인 경우 운영 시작 시간부터 시작
+      return startSlotIndex;
     }
-  }, [selectedDate]);
+  }, [selectedDate, settings]);
 
   const studyRooms = useMemo<Room[]>(() => {
-    if (loading || !Array.isArray(roomsData)) return [];
+    if (loading || !Array.isArray(roomsData) || !settings) return [];
+    
+    const openingHour = parseInt(settings.OPENING_HOUR || '9');
+    const closingHour = parseInt(settings.CLOSING_HOUR || '21');
     
     return roomsData
       .filter(room => room.type === 'BASEMENT')
       .map(room => ({
         ...room,
-        slots: createSlots(reservations.filter(r => r.roomId === room.id))
+        slots: createSlots(reservations.filter(r => r.roomId === room.id), openingHour, closingHour)
       }));
-  }, [roomsData, reservations, loading]);
+  }, [roomsData, reservations, loading, settings]);
 
   const dcellRooms = useMemo<Room[]>(() => {
-    if (loading || !Array.isArray(roomsData)) return [];
+    if (loading || !Array.isArray(roomsData) || !settings) return [];
+    
+    const openingHour = parseInt(settings.OPENING_HOUR || '9');
+    const closingHour = parseInt(settings.CLOSING_HOUR || '21');
     
     return roomsData
       .filter(room => room.type === 'DCELL')
       .map(room => ({
         ...room,
-        slots: createSlots(reservations.filter(r => r.roomId === room.id))
+        slots: createSlots(reservations.filter(r => r.roomId === room.id), openingHour, closingHour)
       }));
-  }, [roomsData, reservations, loading]);
+  }, [roomsData, reservations, loading, settings]);
 
   const futureReservations = useMemo<Reservation[]>(() => {
     return myReservations.filter(res => {
@@ -543,10 +605,41 @@ function MainPage() {
     });
   }, [myReservations, currentTime]);
 
+  // 오늘 예약한 총 시간 계산
+  const todayReservedHours = useMemo<number>(() => {
+    const today = formatDate(new Date());
+    const todayReservations = myReservations.filter(res => res.date === today);
+    
+    const totalSlots = todayReservations.reduce((sum, res) => {
+      return sum + (res.endSlot - res.startSlot + 1);
+    }, 0);
+    
+    return totalSlots / 2; // 30분 단위이므로 2로 나눔
+  }, [myReservations]);
+
+  // 오늘 남은 예약 가능 시간 계산
+  const remainingHoursToday = useMemo<number>(() => {
+    if (!settings) return 0;
+    const dailyLimit = parseInt(settings.DAILY_LIMIT_HOURS || '3');
+    return Math.max(0, dailyLimit - todayReservedHours);
+  }, [settings, todayReservedHours]);
+
   const legend = [
     { label: '예약 가능', className: 'slot-available' },
     { label: '예약 불가', className: 'slot-unavailable' }
   ];
+
+  // 인증 로딩 중
+  if (authLoading) {
+    return (
+      <div className="page-container space-page bg-surface">
+        <div className="loading-container" style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div className="loading-spinner"></div>
+          <p>로그인 확인 중...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="page-container space-page bg-surface">
@@ -561,9 +654,17 @@ function MainPage() {
           </div>
           <div className="d-flex align-items-center gap-3">
             <div className="text-black text-end">
-              <div className="fw-semibold">홍길동</div>
-              <small className="text-black-50">사범대학 학생</small>
+              <div className="fw-semibold">{currentUser?.name || '사용자'}</div>
+              <small className="text-black-50">
+                {currentUser?.department && `${currentUser.department} · `}
+                {currentUser?.email || ''}
+              </small>
             </div>
+            {currentUser && currentUser.role >= 1 && (
+              <button className="btn btn-outline-primary btn-sm rounded-pill px-3" onClick={() => navigate('/admin')}>
+                ⚙️ 관리자
+              </button>
+            )}
             <button className="btn btn-light btn-sm rounded-pill px-3" onClick={handleLogout}>
               로그아웃
             </button>
@@ -627,7 +728,26 @@ function MainPage() {
 
           {futureReservations.length > 0 && (
             <section className="my-reservations mb-4">
-              <h3 className="section-title">📌 나의 예약 내역</h3>
+              <div className="d-flex justify-content-between align-items-center mb-3">
+                <h3 className="section-title mb-0">📌 나의 예약 내역</h3>
+                {settings && (
+                  <div className="d-flex gap-2">
+                    <span className="badge bg-info" style={{ fontSize: '0.9rem', padding: '0.5rem 1rem' }}>
+                      오늘 {todayReservedHours}시간 / {settings.DAILY_LIMIT_HOURS}시간 사용
+                    </span>
+                    {remainingHoursToday > 0 && (
+                      <span className="badge bg-success" style={{ fontSize: '0.9rem', padding: '0.5rem 1rem' }}>
+                        {remainingHoursToday}시간 남음
+                      </span>
+                    )}
+                    {remainingHoursToday === 0 && (
+                      <span className="badge bg-danger" style={{ fontSize: '0.9rem', padding: '0.5rem 1rem' }}>
+                        오늘 예약 불가
+                      </span>
+                    )}
+                  </div>
+                )}
+              </div>
               <div className="my-reservations-grid">
                 {futureReservations.map(res => {
                   const room = roomsData.find(r => r.id === res.roomId);
@@ -775,13 +895,34 @@ function MainPage() {
                   총 {((modalData.endSlot.index - modalData.startSlot.index + 1) * 30)}분 이용
                 </span>
               </div>
+              {settings && (
+                <div className="confirm-limits mt-3">
+                  <div className="alert alert-info mb-0 p-2">
+                    <small>
+                      <strong>📊 예약 현황</strong><br/>
+                      • 오늘 예약: {todayReservedHours}시간 / {settings.DAILY_LIMIT_HOURS}시간<br/>
+                      • 남은 시간: {remainingHoursToday}시간<br/>
+                      • 이번 예약: {((modalData.endSlot.index - modalData.startSlot.index + 1) / 2)}시간<br/>
+                      {remainingHoursToday < ((modalData.endSlot.index - modalData.startSlot.index + 1) / 2) && (
+                        <span className="text-danger">⚠️ 하루 예약 제한을 초과합니다!</span>
+                      )}
+                    </small>
+                  </div>
+                  <small className="text-muted d-block mt-2">
+                    ℹ️ 한 번에 최대 {parseInt(settings.MAX_SLOTS_PER_RESERVATION) / 2}시간까지 예약 가능
+                  </small>
+                </div>
+              )}
               <div className="confirm-actions">
                 <button 
                   className="btn-reserve" 
                   onClick={handleConfirmReservation}
-                  disabled={isReserving}
+                  disabled={isReserving || Boolean(settings && remainingHoursToday < ((modalData.endSlot.index - modalData.startSlot.index + 1) / 2))}
                 >
-                  {isReserving ? '예약 중...' : '예약하기'}
+                  {isReserving ? '예약 중...' : 
+                   (settings && remainingHoursToday < ((modalData.endSlot.index - modalData.startSlot.index + 1) / 2)) 
+                     ? '예약 제한 초과' 
+                     : '예약하기'}
                 </button>
                 <button className="btn-reset" onClick={handleModalClose} disabled={isReserving}>
                   다시 선택

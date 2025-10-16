@@ -134,7 +134,7 @@ body {
   width: 52px;
   height: 52px;
   border-radius: 16px;
-  background: rgba(255, 255, 255, 0.15);
+  background: #0066CC;
   display: flex;
   align-items: center;
   justify-content: center;

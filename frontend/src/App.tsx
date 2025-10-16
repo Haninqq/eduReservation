@@ -2,6 +2,7 @@ import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import LoginPage from './pages/LoginPage';
 import MainPage from './pages/MainPage';
+import AdminPage from './pages/AdminPage';
 
 function App() {
   return (
@@ -15,6 +16,9 @@ function App() {
         
         {/* 메인 페이지 (예약 시스템) */}
         <Route path="/main" element={<MainPage />} />
+        
+        {/* 관리자 페이지 */}
+        <Route path="/admin" element={<AdminPage />} />
       </Routes>
     </Router>
   );

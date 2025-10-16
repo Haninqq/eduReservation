@@ -14,4 +14,21 @@
         FROM settings
     </select>
 
+    <update id="update">
+        UPDATE settings 
+        SET value = #{value}, updated_at = NOW() 
+        WHERE key_name = #{keyName}
+    </update>
+
+    <select id="findByKey" resultType="kr.ac.hanyang.backend.dto.Setting">
+        SELECT
+            id,
+            key_name AS keyName,
+            value,
+            description,
+            updated_at AS updatedAt
+        FROM settings
+        WHERE key_name = #{keyName}
+    </select>
+
 </mapper>

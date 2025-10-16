@@ -32,6 +32,8 @@ out/
 .env.*
 application-*.yml
 application-*.yaml
+backend/src/main/resources/application.properties
+backend/bin/main/application.properties
 *.key
 *.pem
 *.jks

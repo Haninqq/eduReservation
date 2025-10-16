@@ -23,6 +23,13 @@ public class ReservationService {
     @Transactional(isolation = Isolation.READ_COMMITTED)
     public Reservation createReservation(ReservationRequestDTO request) {
 
+        // --- 설정값 가져오기 ---
+        int dailyLimitHours = settingService.getIntValue("DAILY_LIMIT_HOURS", 3); // 기본값 3시간
+        int maxSlotsPerDay = dailyLimitHours * 2; // 30분 단위 슬롯이므로 시간 * 2
+        int openingHour = settingService.getIntValue("OPENING_HOUR", 9); // 기본값 09:00
+        int closingHour = settingService.getIntValue("CLOSING_HOUR", 21); // 기본값 21:00
+        int maxSlotsPerReservation = settingService.getIntValue("MAX_SLOTS_PER_RESERVATION", 6); // 기본값 3시간
+        
         // --- 정책 검증 로직 ---
         // 0. 예약 가능한 날짜 범위 검증 (오늘 ~ 6일 뒤)
         LocalDate today = LocalDate.now();
@@ -31,18 +38,24 @@ public class ReservationService {
             throw new ReservationException("예약은 최대 " + maxReservationDate + "까지만 가능합니다.");
         }
 
-        // 1. 한번에 예약 가능한 최대 시간 검증
-        int maxSlotsPerReservation = settingService.getIntValue("MAX_SLOTS_PER_RESERVATION", 6); // 기본값 3시간
+        // 1. 운영 시간 검증 (OPENING_HOUR ~ CLOSING_HOUR)
+        int requestStartHour = request.getStartSlot() / 2;
+        int requestEndHour = (request.getEndSlot() + 1) / 2; // 종료 슬롯의 다음 시간
+        
+        if (requestStartHour < openingHour || requestEndHour > closingHour) {
+            throw new ReservationException(String.format("예약 가능 시간은 %02d:00 ~ %02d:00 입니다.", openingHour, closingHour));
+        }
+
+        // 2. 한번에 예약 가능한 최대 시간 검증
         int requestedSlots = request.getEndSlot() - request.getStartSlot() + 1;
         if (requestedSlots > maxSlotsPerReservation) {
             throw new ReservationException("한 번에 최대 " + (maxSlotsPerReservation / 2.0) + "시간까지 예약할 수 있습니다.");
         }
 
-        // 2. 하루에 예약 가능한 총 시간 검증
-        int maxTotalSlotsPerDay = settingService.getIntValue("MAX_TOTAL_SLOTS_PER_DAY_PER_USER", 6); // 기본값 3시간
+        // 3. 하루에 예약 가능한 총 시간 검증 (DAILY_LIMIT_HOURS 사용)
         Integer alreadyReservedSlots = reservationMapper.getTotalReservedSlotsByUserIdAndDate(request.getUserId(), request.getDate());
-        if (alreadyReservedSlots + requestedSlots > maxTotalSlotsPerDay) {
-            throw new ReservationException("하루에 최대 " + (maxTotalSlotsPerDay / 2.0) + "시간까지 예약할 수 있습니다. (현재 " + (alreadyReservedSlots/2.0) + "시간 예약됨)");
+        if (alreadyReservedSlots + requestedSlots > maxSlotsPerDay) {
+            throw new ReservationException("하루에 최대 " + dailyLimitHours + "시간까지 예약할 수 있습니다. (현재 " + (alreadyReservedSlots/2.0) + "시간 예약됨)");
         }
         
         // --- 동시성 제어 로직 ---
@@ -100,5 +113,38 @@ public class ReservationService {
         int hour = slot / 2;
         String minute = (slot % 2 == 0) ? "00" : "30";
         return String.format("%02d:%s", hour, minute);
+    }
+
+    /**
+     * 현재 진행 중인 예약 조회 (관리자용)
+     */
+    @Transactional(readOnly = true)
+    public List<Reservation> getCurrentReservations() {
+        return reservationMapper.getCurrentReservations();
+    }
+
+    /**
+     * 모든 예약 조회 (관리자용)
+     */
+    @Transactional(readOnly = true)
+    public List<Reservation> getAllReservations() {
+        return reservationMapper.findAll();
+    }
+
+    /**
+     * 관리자 권한으로 예약 취소
+     */
+    @Transactional
+    public void cancelReservationByAdmin(Long reservationId) {
+        Reservation reservation = reservationMapper.findById(reservationId.intValue());
+        if (reservation == null) {
+            throw new ReservationException("예약을 찾을 수 없습니다: " + reservationId);
+        }
+        if (!"RESERVED".equals(reservation.getStatus())) {
+            throw new ReservationException("이미 취소되었거나 완료된 예약입니다.");
+        }
+
+        reservationMapper.deleteById(reservationId.intValue());
+        log.info("관리자가 예약 ID {}를 취소했습니다.", reservationId);
     }
 }

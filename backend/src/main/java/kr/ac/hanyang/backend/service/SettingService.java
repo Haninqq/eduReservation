@@ -53,4 +53,21 @@ public class SettingService {
             return defaultValue;
         }
     }
+
+    /**
+     * 모든 설정 조회
+     */
+    public List<Setting> getAllSettings() {
+        return settingMapper.findAll();
+    }
+
+    /**
+     * 설정 업데이트
+     */
+    public void updateSetting(String key, String value) {
+        log.info("Updating setting: {} = {}", key, value);
+        settingMapper.update(key, value);
+        // 캐시 업데이트
+        settingsCache.put(key, value);
+    }
 }

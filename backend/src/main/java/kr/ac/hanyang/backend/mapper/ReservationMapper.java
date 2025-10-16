@@ -22,4 +22,14 @@ public interface ReservationMapper {
     Reservation findById(@Param("id") int id);
 
     void deleteById(@Param("id") int id);
+
+    /**
+     * 모든 예약 조회 (관리자용)
+     */
+    List<Reservation> findAll();
+
+    /**
+     * 현재 진행 중인 예약 조회 (관리자용)
+     */
+    List<Reservation> getCurrentReservations();
 }

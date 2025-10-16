@@ -3,6 +3,9 @@ import { Reservation } from '../types/reservation';
 
 const API_BASE_URL = 'http://localhost:8080/api';
 
+// axios 기본 설정: credentials 포함
+axios.defaults.withCredentials = true;
+
 export interface ReservationRequest {
     userId: number;
     roomId: number;

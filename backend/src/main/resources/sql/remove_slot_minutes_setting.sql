@@ -1,0 +1,6 @@
+-- SLOT_MINUTES 설정 제거 (30분으로 고정)
+-- MAX_TOTAL_SLOTS_PER_DAY_PER_USER 설정 제거 (DAILY_LIMIT_HOURS 사용)
+
+DELETE FROM settings WHERE key_name = 'SLOT_MINUTES';
+DELETE FROM settings WHERE key_name = 'MAX_TOTAL_SLOTS_PER_DAY_PER_USER';
+
