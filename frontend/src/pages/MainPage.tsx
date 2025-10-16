@@ -894,31 +894,68 @@ function MainPage() {
                   총 {((modalData.endSlot.index - modalData.startSlot.index + 1) * 30)}분 이용
                 </span>
               </div>
-              {settings && (
-                <div className="confirm-limits mt-3">
-                  <div className="alert alert-info mb-0 p-2">
-                    <small>
-                      <strong>📊 예약 현황</strong><br/>
-                      • 오늘 예약: {todayReservedHours}시간 / {settings.DAILY_LIMIT_HOURS}시간<br/>
-                      • 남은 시간: {remainingHoursToday}시간<br/>
-                      • 이번 예약: {((modalData.endSlot.index - modalData.startSlot.index + 1) / 2)}시간<br/>
-                      {remainingHoursToday < ((modalData.endSlot.index - modalData.startSlot.index + 1) / 2) && (
-                        <span className="text-danger">⚠️ 하루 예약 제한을 초과합니다!</span>
-                      )}
-                    </small>
+              {settings && (() => {
+                // 선택된 날짜의 예약 시간 계산
+                const selectedDate = modalData.date;
+                const selectedDateReservations = myReservations.filter(res => res.date === selectedDate);
+                const selectedDateSlots = selectedDateReservations.reduce((sum, res) => {
+                  return sum + (res.endSlot - res.startSlot + 1);
+                }, 0);
+                const selectedDateReservedHours = selectedDateSlots / 2;
+                
+                const dailyLimit = parseInt(settings.DAILY_LIMIT_HOURS || '3');
+                const remainingHours = Math.max(0, dailyLimit - selectedDateReservedHours);
+                const requestedHours = (modalData.endSlot.index - modalData.startSlot.index + 1) / 2;
+                const willExceedLimit = remainingHours < requestedHours;
+                
+                return (
+                  <div className="confirm-limits mt-3">
+                    <div className="alert alert-info mb-0 p-2">
+                      <small>
+                        <strong>📊 예약 현황 ({selectedDate})</strong><br/>
+                        • 이미 예약: {selectedDateReservedHours}시간 / {settings.DAILY_LIMIT_HOURS}시간<br/>
+                        • 남은 시간: {remainingHours}시간<br/>
+                        • 이번 예약: {requestedHours}시간<br/>
+                        {willExceedLimit && (
+                          <span className="text-danger">⚠️ 하루 예약 제한을 초과합니다!</span>
+                        )}
+                      </small>
+                    </div>
                   </div>
-                </div>
-              )}
+                );
+              })()}
               <div className="confirm-actions">
                 <button 
                   className="btn-reserve" 
                   onClick={handleConfirmReservation}
-                  disabled={isReserving || Boolean(settings && remainingHoursToday < ((modalData.endSlot.index - modalData.startSlot.index + 1) / 2))}
+                  disabled={isReserving || Boolean((() => {
+                    if (!settings) return false;
+                    const selectedDate = modalData.date;
+                    const selectedDateReservations = myReservations.filter(res => res.date === selectedDate);
+                    const selectedDateSlots = selectedDateReservations.reduce((sum, res) => {
+                      return sum + (res.endSlot - res.startSlot + 1);
+                    }, 0);
+                    const selectedDateReservedHours = selectedDateSlots / 2;
+                    const dailyLimit = parseInt(settings.DAILY_LIMIT_HOURS || '3');
+                    const remainingHours = Math.max(0, dailyLimit - selectedDateReservedHours);
+                    const requestedHours = (modalData.endSlot.index - modalData.startSlot.index + 1) / 2;
+                    return remainingHours < requestedHours;
+                  })())}
                 >
                   {isReserving ? '예약 중...' : 
-                   (settings && remainingHoursToday < ((modalData.endSlot.index - modalData.startSlot.index + 1) / 2)) 
-                     ? '예약 제한 초과' 
-                     : '예약하기'}
+                   (() => {
+                     if (!settings) return '예약하기';
+                     const selectedDate = modalData.date;
+                     const selectedDateReservations = myReservations.filter(res => res.date === selectedDate);
+                     const selectedDateSlots = selectedDateReservations.reduce((sum, res) => {
+                       return sum + (res.endSlot - res.startSlot + 1);
+                     }, 0);
+                     const selectedDateReservedHours = selectedDateSlots / 2;
+                     const dailyLimit = parseInt(settings.DAILY_LIMIT_HOURS || '3');
+                     const remainingHours = Math.max(0, dailyLimit - selectedDateReservedHours);
+                     const requestedHours = (modalData.endSlot.index - modalData.startSlot.index + 1) / 2;
+                     return remainingHours < requestedHours ? '예약 제한 초과' : '예약하기';
+                   })()}
                 </button>
                 <button className="btn-reset" onClick={handleModalClose} disabled={isReserving}>
                   다시 선택
