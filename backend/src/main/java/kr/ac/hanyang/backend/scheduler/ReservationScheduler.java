@@ -20,7 +20,8 @@ public class ReservationScheduler {
     private final ReservationMapper reservationMapper;
 
     /**
-     * 매분마다 체크인하지 않은 예약을 확인하여 15분 초과 시 자동 취소
+     * 매분마다 체크인하지 않은 예약을 확인하여 마감 시간 초과 시 자동 취소
+     * 체크인 마감 시간 = 슬롯 종료 - 15분
      */
     @Scheduled(fixedRate = 60000) // 1분마다 실행
     public void cancelNoShowReservations() {
@@ -32,19 +33,21 @@ public class ReservationScheduler {
             List<Reservation> todayReservations = reservationMapper.getReservationsByDate(today);
 
             for (Reservation reservation : todayReservations) {
-                // 체크인하지 않은 예약만 처리
-                if ("RESERVED".equals(reservation.getStatus()) && reservation.getCheckinTime() == null) {
-                    // 예약 시작 시간
-                    LocalTime startTime = slotToTime(reservation.getStartSlot());
-                    LocalDateTime reservationStartTime = LocalDateTime.of(today, startTime);
-                    LocalDateTime deadline = reservationStartTime.plusMinutes(15);
+                // 체크인 필요하고, 체크인하지 않은 예약만 처리
+                if ("RESERVED".equals(reservation.getStatus()) 
+                    && Boolean.TRUE.equals(reservation.getCheckinRequired())
+                    && reservation.getCheckinTime() == null) {
+                    
+                    // 체크인 마감 시간 = 슬롯 종료 - 15분
+                    LocalTime endTime = slotToTime(reservation.getEndSlot());
+                    LocalDateTime checkinDeadline = LocalDateTime.of(today, endTime).minusMinutes(15);
 
-                    // 현재 시간이 예약 시작 + 15분을 초과했는지 확인
-                    if (now.isAfter(deadline)) {
+                    // 현재 시간이 체크인 마감 시간을 초과했는지 확인
+                    if (now.isAfter(checkinDeadline)) {
                         // 자동 취소
                         reservationMapper.deleteById(reservation.getId());
-                        log.info("노쇼 예약 자동 취소: reservationId={}, userId={}, roomId={}, startTime={}", 
-                                reservation.getId(), reservation.getUserId(), reservation.getRoomId(), reservationStartTime);
+                        log.info("노쇼 예약 자동 취소: reservationId={}, userId={}, roomId={}, checkinDeadline={}", 
+                                reservation.getId(), reservation.getUserId(), reservation.getRoomId(), checkinDeadline);
                     }
                 }
             }

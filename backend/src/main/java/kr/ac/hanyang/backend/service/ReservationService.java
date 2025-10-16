@@ -11,6 +11,8 @@ import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.List;
 
 @RequiredArgsConstructor
@@ -67,6 +69,13 @@ public class ReservationService {
         reservation.setStartSlot(request.getStartSlot());
         reservation.setEndSlot(request.getEndSlot());
         reservation.setStatus("RESERVED"); // 상태는 'RESERVED'
+        
+        // 체크인 필요 여부 판단
+        // 체크인 마감 시간 = 슬롯 종료 - 15분
+        // 예약 시점이 마감 이후라면 체크인 불필요
+        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime checkinDeadline = LocalDateTime.of(request.getDate(), slotToTime(request.getEndSlot())).minusMinutes(15);
+        reservation.setCheckinRequired(!now.isAfter(checkinDeadline));
 
         reservationMapper.insertReservation(reservation);
 
@@ -107,6 +116,12 @@ public class ReservationService {
         int hour = slot / 2;
         String minute = (slot % 2 == 0) ? "00" : "30";
         return String.format("%02d:%s", hour, minute);
+    }
+    
+    private LocalTime slotToTime(int slot) {
+        int hour = slot / 2;
+        int minute = (slot % 2) * 30;
+        return LocalTime.of(hour, minute);
     }
 
     /**

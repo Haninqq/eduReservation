@@ -19,13 +19,13 @@
 
     <insert id="insertReservation" useGeneratedKeys="true" keyProperty="id"
             parameterType="kr.ac.hanyang.backend.dto.Reservation">
-        INSERT INTO reservations (user_id, room_id, date, start_slot, end_slot, status)
-        VALUES (#{userId}, #{roomId}, #{date}, #{startSlot}, #{endSlot}, #{status})
+        INSERT INTO reservations (user_id, room_id, date, start_slot, end_slot, status, checkin_required)
+        VALUES (#{userId}, #{roomId}, #{date}, #{startSlot}, #{endSlot}, #{status}, #{checkinRequired})
     </insert>
 
     <select id="getReservationsByDate" resultType="kr.ac.hanyang.backend.dto.Reservation">
         SELECT
-            id, user_id, room_id, date, start_slot, end_slot, status, checkin_time, created_at
+            id, user_id, room_id, date, start_slot, end_slot, status, checkin_time, checkin_required, created_at
         FROM reservations
         WHERE date = #{date} AND status = 'RESERVED'
     </select>
@@ -39,7 +39,7 @@
 
     <select id="findByUserId" resultType="kr.ac.hanyang.backend.dto.Reservation">
         SELECT
-            id, user_id, room_id, date, start_slot, end_slot, status, checkin_time, created_at
+            id, user_id, room_id, date, start_slot, end_slot, status, checkin_time, checkin_required, created_at
         FROM reservations
         WHERE user_id = #{userId} AND status != 'CANCELLED'
         ORDER BY date, start_slot
@@ -47,7 +47,7 @@
 
     <select id="findById" resultType="kr.ac.hanyang.backend.dto.Reservation">
         SELECT
-            id, user_id, room_id, date, start_slot, end_slot, status, checkin_time, created_at
+            id, user_id, room_id, date, start_slot, end_slot, status, checkin_time, checkin_required, created_at
         FROM reservations
         WHERE id = #{id}
     </select>
@@ -60,7 +60,7 @@
     <!-- 관리자용: 모든 예약 조회 (지난 예약 제외) -->
     <select id="findAll" resultType="kr.ac.hanyang.backend.dto.Reservation">
         SELECT
-            id, user_id, room_id, date, start_slot, end_slot, status, checkin_time, created_at
+            id, user_id, room_id, date, start_slot, end_slot, status, checkin_time, checkin_required, created_at
         FROM reservations
         WHERE (date > CURDATE()) 
            OR (date = CURDATE() AND end_slot >= (HOUR(NOW()) * 2 + IF(MINUTE(NOW()) >= 30, 1, 0)))
@@ -70,7 +70,7 @@
     <!-- 관리자용: 현재 진행 중인 예약 조회 -->
     <select id="getCurrentReservations" resultType="kr.ac.hanyang.backend.dto.Reservation">
         SELECT
-            id, user_id, room_id, date, start_slot, end_slot, status, checkin_time, created_at
+            id, user_id, room_id, date, start_slot, end_slot, status, checkin_time, checkin_required, created_at
         FROM reservations
         WHERE date = CURDATE() 
           AND status = 'RESERVED'

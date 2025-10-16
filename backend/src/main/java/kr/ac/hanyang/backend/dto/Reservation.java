@@ -16,5 +16,6 @@ public class Reservation {
     private int endSlot;
     private String status;
     private LocalDateTime checkinTime;
+    private Boolean checkinRequired;  // 체크인 필요 여부
     private LocalDateTime createdAt;
 }
