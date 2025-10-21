@@ -134,7 +134,6 @@ UPDATE users SET role = 2 WHERE email = 'superadmin@hanyang.ac.kr';
 - **OPENING_HOUR**: 운영 시작 시간 (기본: 9시)
 - **CLOSING_HOUR**: 운영 종료 시간 (기본: 21시)
 - **DAILY_LIMIT_HOURS**: 하루 최대 예약 시간 (기본: 3시간)
-- **MAX_SLOTS_PER_RESERVATION**: 한 번에 최대 예약 시간 (기본: 6슬롯 = 3시간)
 
 ### 세션 설정
 - 세션 타임아웃: 24시간

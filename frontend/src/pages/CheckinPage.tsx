@@ -33,11 +33,6 @@ function CheckinPage() {
       if (data.success) {
         setMessage(data.message);
         setSuccess(true);
-        
-        // 3초 후 메인 페이지로 이동
-        setTimeout(() => {
-          navigate('/main');
-        }, 3000);
       } else {
         setMessage(data.message);
         setSuccess(false);

@@ -72,12 +72,11 @@ public class ReservationService {
         reservation.setStatus("RESERVED"); // 상태는 'RESERVED'
         
         // 체크인 필요 여부 판단
-        // 체크인 마감 시간 = 슬롯 종료 - 15분
-        // 예약 시점이 마감 이후라면 체크인 불필요
+        // 정책: 예약 시작 후 15분 내 체크인
+        // 체크인 마감 시간 = startSlot의 시작 시각 + 15분
         LocalDateTime now = LocalDateTime.now(ZoneId.of("Asia/Seoul"));
-        // 슬롯 종료 시간 = 슬롯 시작 시간 + 30분
-        LocalTime endTime = slotToTime(request.getEndSlot()).plusMinutes(30);
-        LocalDateTime checkinDeadline = LocalDateTime.of(request.getDate(), endTime).minusMinutes(15);
+        LocalTime startTime = slotToTime(request.getStartSlot());
+        LocalDateTime checkinDeadline = LocalDateTime.of(request.getDate(), startTime).plusMinutes(15);
         reservation.setCheckinRequired(!now.isAfter(checkinDeadline));
 
         reservationMapper.insertReservation(reservation);

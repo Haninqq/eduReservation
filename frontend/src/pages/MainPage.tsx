@@ -445,6 +445,31 @@ function MainPage() {
     }
   }, [selectedDate, currentUser]);
 
+  // 실시간 반영: 주기적 갱신 + 탭 포커스/가시성 변화 시 재조회
+  useEffect(() => {
+    if (!currentUser) return;
+    // 30초마다 최신 예약 상황 조회
+    const intervalId = setInterval(() => {
+      fetchRoomsAndReservations();
+    }, 30000);
+
+    // 브라우저 탭이 다시 보이거나 포커스될 때 재조회
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        fetchRoomsAndReservations();
+      }
+    };
+    const handleFocus = () => fetchRoomsAndReservations();
+    document.addEventListener('visibilitychange', handleVisibility);
+    window.addEventListener('focus', handleFocus);
+
+    return () => {
+      clearInterval(intervalId);
+      document.removeEventListener('visibilitychange', handleVisibility);
+      window.removeEventListener('focus', handleFocus);
+    };
+  }, [currentUser, selectedDate]);
+
   useEffect(() => {
     const timer = setInterval(() => {
       setCurrentTime(new Date());
@@ -693,6 +718,7 @@ function MainPage() {
                   - 예약 시간 10분 초과 시 자동 취소되오니, 늦지 않게 이용을 시작해주세요.<br />
                   - 모든 공간에서 음식물 섭취는 불가하며, 깨끗하게 사용 후 정리정돈 부탁드립니다.
                 </p>
+
               </div>
             </div>
             <div className="space-hero__controls">

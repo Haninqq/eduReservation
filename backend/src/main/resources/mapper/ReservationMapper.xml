@@ -12,7 +12,7 @@
         WHERE room_id = #{roomId}
           AND date = #{date}
           AND #{slot} BETWEEN start_slot AND end_slot
-          AND status = 'RESERVED'
+          AND status IN ('RESERVED', 'CHECKED_IN')
         LIMIT 1
         FOR UPDATE
     </select>
@@ -27,14 +27,14 @@
         SELECT
             id, user_id, room_id, date, start_slot, end_slot, status, checkin_time, checkin_required, created_at
         FROM reservations
-        WHERE date = #{date} AND status = 'RESERVED'
+        WHERE date = #{date} AND status IN ('RESERVED', 'CHECKED_IN')
     </select>
 
     <select id="getTotalReservedSlotsByUserIdAndDate" resultType="Integer">
         SELECT COALESCE(SUM(end_slot - start_slot + 1), 0)
         FROM reservations
         WHERE user_id = #{userId}
-          AND date = #{date} AND status = 'RESERVED'
+          AND date = #{date} AND status IN ('RESERVED', 'CHECKED_IN')
     </select>
 
     <select id="findByUserId" resultType="kr.ac.hanyang.backend.dto.Reservation">
@@ -73,7 +73,7 @@
             id, user_id, room_id, date, start_slot, end_slot, status, checkin_time, checkin_required, created_at
         FROM reservations
         WHERE date = CURDATE() 
-          AND status = 'RESERVED'
+          AND status IN ('RESERVED', 'CHECKED_IN')
           AND start_slot &lt;= (HOUR(NOW()) * 2 + IF(MINUTE(NOW()) >= 30, 1, 0))
           AND end_slot >= (HOUR(NOW()) * 2 + IF(MINUTE(NOW()) >= 30, 1, 0))
         ORDER BY start_slot ASC

@@ -41,6 +41,21 @@ public class CheckinService {
         // 2. 오늘 날짜의 해당 방 예약 찾기 (현재 시간대 우선 매칭)
         LocalDate today = LocalDate.now(ZoneId.of("Asia/Seoul"));
         List<Reservation> myReservations = reservationMapper.findByUserId(user.getId().intValue());
+        int nowSlot = getCurrentSlot();
+
+        // 이미 체크인된 예약이 있는 경우 재스캔 시에도 성공으로 응답 (현재 시간대에 해당하는 것만)
+        Reservation alreadyCheckedIn = myReservations.stream()
+                .filter(r -> r.getRoomId() == roomId)
+                .filter(r -> r.getDate().equals(today))
+                .filter(r -> "CHECKED_IN".equals(r.getStatus()))
+                .filter(r -> nowSlot >= r.getStartSlot() && nowSlot < (r.getEndSlot() + 1)) // 현재 시간대에 해당
+                .findFirst()
+                .orElse(null);
+        if (alreadyCheckedIn != null) {
+            log.info("이미 체크인된 예약 재스캔 처리: reservationId={}, userId={}, roomId={}",
+                    alreadyCheckedIn.getId(), user.getId(), roomId);
+            return alreadyCheckedIn;
+        }
 
         List<Reservation> candidates = myReservations.stream()
                 .filter(r -> r.getRoomId() == roomId)
@@ -50,11 +65,9 @@ public class CheckinService {
                 .sorted((a, b) -> Integer.compare(a.getStartSlot(), b.getStartSlot()))
                 .toList();
 
-        int nowSlot = getCurrentSlot();
-
-        // 현재 시간대에 해당하는 예약을 우선 선택
+        // 현재 시간대에 해당하는 예약을 우선 선택 (endSlot은 포함이므로 endSlot+1의 시작 전까지 유효)
         Reservation targetReservation = candidates.stream()
-                .filter(r -> nowSlot >= r.getStartSlot() && nowSlot < r.getEndSlot())
+                .filter(r -> nowSlot >= r.getStartSlot() && nowSlot < (r.getEndSlot() + 1))
                 .findFirst()
                 .orElse(null);
 
@@ -70,9 +83,11 @@ public class CheckinService {
             throw new IllegalArgumentException("오늘 이 방에 대한 예약이 없거나 이미 체크인했습니다.");
         }
 
-        // 3. 체크인 필요 여부 확인
-        if (!targetReservation.getCheckinRequired()) {
-            throw new IllegalArgumentException("이 예약은 체크인이 필요하지 않습니다. (마감 시간 이후 예약)");
+        // 3. 체크인 필요 여부: 불필요 예약이면 상태 변경 없이 안내만 하도록 그대로 반환
+        if (Boolean.FALSE.equals(targetReservation.getCheckinRequired())) {
+            log.info("체크인 불필요 예약: reservationId={}, userId={}, roomId={}",
+                    targetReservation.getId(), user.getId(), roomId);
+            return reservationMapper.findById(targetReservation.getId());
         }
 
         // 4. 예약 시간 확인 (예약 시작 시간부터 체크인 가능)
@@ -85,53 +100,36 @@ public class CheckinService {
             throw new IllegalArgumentException("예약 시작 시간(" + reservationStartTime + " KST)부터 체크인 가능합니다.");
         }
 
-        // 5. 체크인 마감 시간 확인 (슬롯 종료 - 15분)
-        LocalTime reservationEndTime = slotToTime(targetReservation.getEndSlot());
-        LocalDateTime checkinDeadline = LocalDateTime.of(today, reservationEndTime).minusMinutes(15);
+        // 5. 체크인 마감 시간 확인 (정책: 시작 후 15분)
+        LocalTime reservationStartTimeForDeadline = slotToTime(targetReservation.getStartSlot());
+        LocalDateTime checkinDeadline = LocalDateTime.of(today, reservationStartTimeForDeadline).plusMinutes(15);
 
         if (now.isAfter(checkinDeadline)) {
-            // 체크인 마감 시간 초과 → 예약 자동 취소
-            reservationMapper.deleteById(targetReservation.getId());
-            log.info("예약 ID {}는 체크인 마감 시간({} KST)까지 체크인하지 않아 자동 취소되었습니다.", 
+            // 체크인 마감 시간 초과 → 이력 보존을 위해 상태만 변경
+            reservationMapper.updateStatus(targetReservation.getId(), "CANCELLED");
+            log.info("예약 ID {}는 체크인 마감 시간({} KST)까지 체크인하지 않아 자동 취소되었습니다(상태 변경).", 
                     targetReservation.getId(), checkinDeadline);
             throw new IllegalArgumentException("체크인 마감 시간(" + checkinDeadline.toLocalTime() + " KST) 지나 예약이 자동 취소되었습니다.");
         }
 
         // 6. 체크인 처리
+        log.info("체크인 처리 시작: reservationId={}, 현재 상태={}", 
+                targetReservation.getId(), targetReservation.getStatus());
+        
         reservationMapper.updateCheckinTime(targetReservation.getId());
         reservationMapper.updateStatus(targetReservation.getId(), "CHECKED_IN");
+        
         log.info("체크인 완료: reservationId={}, userId={}, roomId={}", 
                 targetReservation.getId(), user.getId(), roomId);
 
         // 업데이트된 예약 정보 반환
-        return reservationMapper.findById(targetReservation.getId());
-    }
-
-    /**
-     * 예약 ID로 체크인 (수동 체크인)
-     */
-    @Transactional
-    public Reservation checkinByReservationId(Integer reservationId) {
-        Reservation reservation = reservationMapper.findById(reservationId);
+        Reservation updatedReservation = reservationMapper.findById(targetReservation.getId());
+        log.info("체크인 후 조회 결과: reservationId={}, status={}, checkinTime={}", 
+                updatedReservation.getId(), updatedReservation.getStatus(), updatedReservation.getCheckinTime());
         
-        if (reservation == null) {
-            throw new IllegalArgumentException("예약을 찾을 수 없습니다.");
-        }
-
-        if (!"RESERVED".equals(reservation.getStatus())) {
-            throw new IllegalArgumentException("예약 상태가 유효하지 않습니다.");
-        }
-
-        if (reservation.getCheckinTime() != null) {
-            throw new IllegalArgumentException("이미 체크인된 예약입니다.");
-        }
-
-        // 체크인 처리
-        reservationMapper.updateCheckinTime(reservationId);
-        log.info("수동 체크인 완료: reservationId={}", reservationId);
-
-        return reservationMapper.findById(reservationId);
+        return updatedReservation;
     }
+
 
     /**
      * 현재 시간을 슬롯 인덱스로 변환

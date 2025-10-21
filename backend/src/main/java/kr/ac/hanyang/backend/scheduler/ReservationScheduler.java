@@ -39,16 +39,15 @@ public class ReservationScheduler {
                     && Boolean.TRUE.equals(reservation.getCheckinRequired())
                     && reservation.getCheckinTime() == null) {
                     
-                    // 체크인 마감 시간 = 슬롯 종료 - 15분
-                    // 슬롯 종료 시간 = 슬롯 시작 시간 + 30분
-                    LocalTime endTime = slotToTime(reservation.getEndSlot()).plusMinutes(30);
-                    LocalDateTime checkinDeadline = LocalDateTime.of(today, endTime).minusMinutes(15);
+                    // 정책: 예약 시작 후 15분 내 미체크인은 노쇼 → 시작 + 15분
+                    LocalTime startTime = slotToTime(reservation.getStartSlot());
+                    LocalDateTime checkinDeadline = LocalDateTime.of(today, startTime).plusMinutes(15);
 
                     // 현재 시간이 체크인 마감 시간을 초과했는지 확인
                     if (now.isAfter(checkinDeadline)) {
-                        // 자동 취소
-                        reservationMapper.deleteById(reservation.getId());
-                        log.info("노쇼 예약 자동 취소: reservationId={}, userId={}, roomId={}, checkinDeadline={}", 
+                        // 자동 취소: 이력 보존을 위해 상태만 변경 (유니크 인덱스는 활성 예약에만 적용됨)
+                        reservationMapper.updateStatus(reservation.getId(), "CANCELLED");
+                        log.info("노쇼 예약 자동 취소(상태 변경): reservationId={}, userId={}, roomId={}, checkinDeadline={}", 
                                 reservation.getId(), reservation.getUserId(), reservation.getRoomId(), checkinDeadline);
                     }
                 }
